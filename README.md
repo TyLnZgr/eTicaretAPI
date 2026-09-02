@@ -1,95 +1,128 @@
 # E-Commerce API
 
-C# ve .NET öğrenirken adım adım geliştirdiğimiz bir e-ticaret Web API projesidir.
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)
+![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-Web_API-512BD4)
+![Status](https://img.shields.io/badge/status-active_development-orange)
 
-Bu projenin amacı yalnızca çalışan bir uygulama oluşturmak değildir. Kullandığımız her kavramın hangi problemi çözdüğünü anlamak, gerçek proje pratiği kazanmak ve teknik mülakatlara hazırlanmak da hedeflenmektedir.
+ASP.NET Core üzerinde geliştirilen e-ticaret backend servisidir. Proje; ürün kataloğu, kategori, stok, sepet, sipariş ve kullanıcı yönetimi gibi temel e-ticaret alanlarını güvenli ve sürdürülebilir bir API altında toplamayı hedefler.
 
-> Proje basitten karmaşığa ilerler. Her öğrenme günü küçük, anlaşılır ve çalışan bir commit ile tamamlanır.
+Repository şu anda başlangıç aşamasındadır. Çalışan API host'u ve servis durumunu döndüren ilk endpoint hazırdır; iş alanları ve veri erişim katmanı sonraki sürümlerde eklenecektir.
 
-## Mevcut durum — Day 01
+## İçindekiler
 
-İlk gün çalışan en küçük ASP.NET Core Web API iskeleti oluşturuldu.
+- [Proje durumu](#proje-durumu)
+- [Teknoloji yığını](#teknoloji-yığını)
+- [Başlangıç](#başlangıç)
+- [API](#api)
+- [Yapılandırma](#yapılandırma)
+- [Proje yapısı](#proje-yapısı)
+- [Teknik yol haritası](#teknik-yol-haritası)
+- [Geliştirme standartları](#geliştirme-standartları)
 
-Tamamlananlar:
+## Proje durumu
 
-- .NET solution oluşturuldu.
-- ASP.NET Core Web API projesi solution'a eklendi.
-- E-ticaret dışı örnek kod kaldırıldı.
-- İlk `GET /` endpoint'i eklendi.
-- JSON response üretildi.
-- Proje derlendi ve gerçek bir HTTP isteğiyle doğrulandı.
-
-Henüz özellikle eklemediklerimiz:
-
-- Entity modelleri
-- CRUD işlemleri
-- Veritabanı bağlantısı
-- Entity Framework Core
-- Authentication ve authorization
-- Test projeleri
-
-Bir sonraki adımda C# veri tiplerini, değişkenleri ve ilk `Product` sınıfını öğreneceğiz.
-
-## Kullanılan teknolojiler
-
-| Teknoloji | Görevi |
+| Bileşen | Durum |
 | --- | --- |
-| C# | Uygulamayı yazdığımız programlama dili |
-| .NET 10 | Uygulamanın geliştirme ve çalışma platformu |
-| ASP.NET Core | Web API geliştirme çatısı |
-| Minimal API | Endpoint'leri az kodla tanımlayan ASP.NET Core yaklaşımı |
-| Kestrel | HTTP isteklerini karşılayan web sunucusu |
-| HTTP ve JSON | İstemci ile API arasındaki iletişim biçimleri |
+| ASP.NET Core API host | Hazır |
+| Temel servis endpoint'i | Hazır |
+| Ürün ve kategori kataloğu | Planlandı |
+| Kalıcı veri erişimi | Planlandı |
+| Entity Framework Core | Planlandı |
+| Sepet, stok ve sipariş yönetimi | Planlandı |
+| Kimlik doğrulama ve yetkilendirme | Planlandı |
+| Otomatik testler | Planlandı |
+| Container ve deployment | Planlandı |
 
-İlerleyen günlerde ORM olarak **Entity Framework Core** kullanacağız.
+Mevcut sürüm production kullanımı için hazır değildir.
 
-**ORM (Object-Relational Mapping)**, C# nesneleriyle ilişkisel veritabanı tabloları arasında eşleme kurar. Böylece veritabanı işlemlerinin önemli bir bölümünü C# koduyla ifade edebiliriz. ORM öğrenirken SQL'in ve ilişkisel veritabanının temel mantığını da ayrıca ele alacağız.
+## Teknoloji yığını
 
-## Gereksinimler
+### Mevcut
 
-- .NET 10 SDK
+| Teknoloji | Kullanım |
+| --- | --- |
+| C# | Uygulama dili |
+| .NET 10 | Hedef framework ve çalışma platformu |
+| ASP.NET Core Minimal API | HTTP endpoint tanımları ve uygulama host'u |
+| Kestrel | Web sunucusu |
+| JSON | API veri alışveriş formatı |
+
+Projede nullable reference types ve implicit global usings etkindir.
+
+### Planlanan
+
+- Entity Framework Core
+- İlişkisel veritabanı
+- OpenAPI/Swagger
+- Validation
+- JWT tabanlı authentication
+- Role ve policy tabanlı authorization
+- Unit ve integration testleri
+- Docker
+- CI/CD
+
+Planlanan teknolojiler, ilgili iş gereksinimi uygulanırken kesinleştirilecektir.
+
+## Başlangıç
+
+### Gereksinimler
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Git
-- İsteğe bağlı olarak Visual Studio Code, Visual Studio veya JetBrains Rider
 
-Kurulu .NET sürümünü kontrol etmek için:
+Kurulu SDK sürümünü kontrol edin:
 
 ```bash
 dotnet --version
 ```
 
-## Projeyi çalıştırma
+### Kurulum
 
-Bağımlılıkları hazırla:
+Repository'yi klonlayın:
+
+```bash
+git clone https://github.com/TyLnZgr/eTicaretAPI.git
+cd eTicaretAPI
+```
+
+Bağımlılıkları geri yükleyin:
 
 ```bash
 dotnet restore
 ```
 
-Solution içindeki projeleri derle:
+Solution'ı derleyin:
 
 ```bash
 dotnet build ECommerce.slnx
 ```
 
-API'yi çalıştır:
+API'yi çalıştırın:
 
 ```bash
 dotnet run --project src/ECommerce.Api/ECommerce.Api.csproj
 ```
 
-Uygulama geliştirme ortamında şu adreste çalışır:
+HTTP profili varsayılan olarak aşağıdaki adresi kullanır:
 
 ```text
 http://localhost:5080
 ```
 
-Başka bir terminalden isteği gönder:
+## API
 
-```bash
-curl http://localhost:5080/
+### Servis durumu
+
+```http
+GET /
 ```
 
-Beklenen cevap:
+Başarılı cevap:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+```
 
 ```json
 {
@@ -97,18 +130,41 @@ Beklenen cevap:
 }
 ```
 
-## Mevcut endpoint
+Terminal üzerinden örnek istek:
 
-| HTTP metodu | Adres | Açıklama | Başarılı cevap |
-| --- | --- | --- | --- |
-| `GET` | `/` | API'nin çalıştığını kontrol eder | `200 OK` |
+```bash
+curl http://localhost:5080/
+```
 
-Bir **endpoint**, HTTP metodu ile URL yolunun birleşimidir. Örneğin `GET /`, uygulamanın kök yoluna gönderilen bir okuma isteğidir.
+IDE HTTP istemcileri için hazır istek [ECommerce.Api.http](src/ECommerce.Api/ECommerce.Api.http) dosyasında bulunur.
+
+## Yapılandırma
+
+Uygulama ASP.NET Core'un standart yapılandırma sistemini kullanır.
+
+| Dosya | Amaç |
+| --- | --- |
+| `appsettings.json` | Ortak uygulama ayarları |
+| `appsettings.Development.json` | Development ortamına özel ayarlar |
+| `Properties/launchSettings.json` | Yerel çalışma profilleri ve URL'ler |
+
+Aktif ortam `ASPNETCORE_ENVIRONMENT` değişkeniyle belirlenir. Parolalar, bağlantı bilgileri, token'lar ve diğer gizli değerler repository'ye eklenmemelidir. Yerel geliştirmede environment variable kullanılmalıdır.
+
+HTTPS profilini çalıştırmak için:
+
+```bash
+dotnet run \
+  --project src/ECommerce.Api/ECommerce.Api.csproj \
+  --launch-profile https
+```
+
+HTTPS profili `https://localhost:7080` adresini kullanır.
 
 ## Proje yapısı
 
 ```text
-e-ticaretAPI/
+eTicaretAPI/
+├── .gitignore
 ├── ECommerce.slnx
 ├── README.md
 └── src/
@@ -122,94 +178,84 @@ e-ticaretAPI/
         └── Program.cs
 ```
 
-- `ECommerce.slnx`: Bir veya daha fazla projeyi aynı solution altında toplar.
-- `ECommerce.Api.csproj`: Projenin türünü, hedef framework'ünü ve bağımlılıklarını tanımlar.
-- `Program.cs`: Uygulamanın başlangıç noktasıdır.
-- `appsettings.json`: Uygulamanın yapılandırma ayarlarını tutar.
-- `launchSettings.json`: Yerel geliştirme profillerini ve adreslerini tanımlar.
-- `ECommerce.Api.http`: Editör üzerinden örnek HTTP istekleri göndermeyi sağlar.
-
-## Öğrenme yol haritası
-
-- [x] Day 01 — Solution, Web API iskeleti ve ilk endpoint
-- [ ] C# değişkenleri, veri tipleri ve operatörler
-- [ ] Class, object ve ilk `Product` modeli
-- [ ] Koleksiyonlar ve bellekte ürün yönetimi
-- [ ] HTTP metotları, REST ve durum kodları
-- [ ] Ürünler için CRUD işlemleri
-- [ ] Encapsulation, interface ve Dependency Injection
-- [ ] Entity Framework Core ve ORM
-- [ ] Veritabanı, migration ve ilişkiler
-- [ ] `Product` ve `Category` ilişkisi
-- [ ] DTO, mapping ve validation
-- [ ] Async programlama, LINQ, filtering ve pagination
-- [ ] Sepet, sipariş, stok ve transaction yönetimi
-- [ ] Global hata yönetimi, logging ve caching
-- [ ] JWT authentication ve role-based authorization
-- [ ] Unit ve integration testleri
-- [ ] Docker, CI/CD ve deployment
-
-Konular takvim uğruna hızlandırılmayacaktır. Bir başlık gerektiğinde birden fazla güne bölünebilir.
-
-## Günlük ilerleme
-
-| Gün | Konu | Durum |
-| --- | --- | --- |
-| Day 01 | Proje kurulumu, Minimal API, ilk endpoint ve JSON response | Tamamlandı |
-| Day 02 | C# veri tipleri, değişkenler ve ilk `Product` sınıfı | Sırada |
-
-Bu tablo her öğrenme gününün sonunda güncellenecektir.
-
-## Commit standardı
-
-Commit mesajlarında şu biçimi kullanacağız:
-
-```text
-<type>(day-XX): <kısa ve açıklayıcı mesaj>
-```
-
-| Tür | Ne zaman kullanılır? |
+| Yol | Sorumluluk |
 | --- | --- |
-| `feat` | Yeni bir özellik eklendiğinde |
-| `fix` | Bir hata düzeltildiğinde |
-| `docs` | Yalnızca dokümantasyon değiştiğinde |
-| `refactor` | Davranış değişmeden kod iyileştirildiğinde |
-| `test` | Test eklendiğinde veya güncellendiğinde |
-| `chore` | Kurulum ve bakım işlemlerinde |
+| `ECommerce.slnx` | Solution içindeki projeleri organize eder |
+| `src/ECommerce.Api` | HTTP host'u, endpoint'ler ve API yapılandırması |
+| `Program.cs` | Uygulama başlangıcı ve request pipeline |
+| `ECommerce.Api.csproj` | Hedef framework ve proje bağımlılıkları |
 
-Örnekler:
+Yeni katmanlar ve projeler yalnızca domain karmaşıklığı gerektirdiğinde eklenecektir.
 
-```text
-chore(day-01): initialize ASP.NET Core Web API
-feat(day-02): add Product model
-feat(day-04): implement product CRUD endpoints
-feat(day-06): configure Entity Framework Core
-refactor(day-08): move product logic into service layer
-test(day-12): add product service unit tests
+## Teknik yol haritası
+
+### 1. Ürün kataloğu
+
+- Product ve Category modelleri
+- CRUD endpoint'leri
+- DTO ve request/response sözleşmeleri
+- Girdi doğrulama
+- Filtering, sorting ve pagination
+
+### 2. Veri erişimi
+
+- Entity Framework Core entegrasyonu
+- Veritabanı provider yapılandırması
+- Migration yönetimi
+- Entity ilişkileri ve veri bütünlüğü
+- Asenkron sorgular ve transaction yönetimi
+
+### 3. Ticaret akışları
+
+- Sepet yönetimi
+- Stok kontrolü
+- Sipariş ve sipariş kalemleri
+- Fiyat hesaplama
+- Eş zamanlı güncelleme senaryoları
+
+### 4. Güvenlik
+
+- Kullanıcı ve rol yönetimi
+- Authentication
+- Role/policy tabanlı authorization
+- JWT access ve refresh token akışı
+- Güvenli secret yönetimi
+
+### 5. Production hazırlığı
+
+- Merkezi hata yönetimi ve Problem Details
+- Structured logging ve health checks
+- Unit ve integration testleri
+- Docker
+- CI/CD pipeline
+- İzlenebilirlik ve performans iyileştirmeleri
+
+## Geliştirme standartları
+
+- Kod ve domain isimleri İngilizce yazılır.
+- Değişiklikler küçük, odaklı ve derlenebilir tutulur.
+- API sözleşmeleri geriye uyumluluk dikkate alınarak değiştirilir.
+- Gizli bilgiler kaynak kodda veya configuration dosyalarında tutulmaz.
+- Yeni bağımlılıklar yalnızca açık bir gereksinim olduğunda eklenir.
+- Her değişiklikte en azından solution build'i doğrulanır.
+
+Temel doğrulama komutu:
+
+```bash
+dotnet build ECommerce.slnx --no-restore
 ```
 
-Günlük çalışma kuralımız:
+Commit mesajlarında Conventional Commits türleri tercih edilir:
 
-1. O günün tek ve küçük öğrenme hedefini belirleriz.
-2. Kodu yazıp ne yaptığını açıklarız.
-3. Derleme ve ilgili testleri çalıştırırız.
-4. `git status` ve staged diff'i kontrol ederiz.
-5. Anlamlı commit mesajıyla commit oluştururuz.
-6. README içindeki günlük ilerleme tablosunu güncelleriz.
+```text
+feat: add product creation endpoint
+fix: prevent negative stock values
+docs: update API usage
+refactor: extract product service
+test: cover product validation
+chore: update project configuration
+```
 
-## Öğrenme yaklaşımı
+## Maintainer
 
-Her yeni konuyu şu sırayla ele alacağız:
-
-1. Kavramın sade tanımı
-2. Neden kullanıldığının açıklanması
-3. Küçük bir kod örneği
-4. Kodun satır satır incelenmesi
-5. E-ticaret projesine uygulanması
-6. Mini alıştırma
-7. Teknik mülakat soruları
-8. Çalışan kodun commit edilmesi
-
-## Proje durumu
-
-Bu bir öğrenme projesidir ve henüz production kullanımı için hazır değildir. Yapı, her yeni kavramın çözdüğü problem görülebilecek şekilde kademeli olarak geliştirilecektir.
+[@TyLnZgr](https://github.com/TyLnZgr)
