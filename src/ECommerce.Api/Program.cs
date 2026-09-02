@@ -3,7 +3,7 @@ var app = builder.Build();
 
 app.MapGet("/", () => new
 {
-    message = "ECommerce API is running."
+    message = "ECommerce API "
 });
 
 app.Run();
