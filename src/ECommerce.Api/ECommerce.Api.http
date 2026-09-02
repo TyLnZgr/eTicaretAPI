@@ -4,3 +4,13 @@ GET {{ECommerce.Api_HostAddress}}/
 Accept: application/json
 
 ###
+
+GET {{ECommerce.Api_HostAddress}}/api/products/1
+Accept: application/json
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/products
+Accept: application/json
+
+###
