@@ -4,64 +4,90 @@
 ![ASP.NET Core](https://img.shields.io/badge/ASP.NET_Core-Web_API-512BD4)
 ![Status](https://img.shields.io/badge/status-active_development-orange)
 
-ASP.NET Core üzerinde geliştirilen e-ticaret backend servisidir. Proje; ürün kataloğu, kategori, stok, sepet, sipariş ve kullanıcı yönetimi gibi temel e-ticaret alanlarını güvenli ve sürdürülebilir bir API altında toplamayı hedefler.
+ASP.NET Core ve C# ile geliştirilen modüler e-ticaret backend servisidir. Sistem; katalog, stok, sepet, sipariş ve kimlik yönetimi gibi temel e-ticaret iş alanlarını güvenli, test edilebilir ve sürdürülebilir bir API altında birleştirmek üzere tasarlanmıştır.
 
-Repository şu anda başlangıç aşamasındadır. Çalışan API host'u ve servis durumunu döndüren ilk endpoint hazırdır; iş alanları ve veri erişim katmanı sonraki sürümlerde eklenecektir.
+## Proje kapsamı
 
-## İçindekiler
-
-- [Proje durumu](#proje-durumu)
-- [Teknoloji yığını](#teknoloji-yığını)
-- [Başlangıç](#başlangıç)
-- [API](#api)
-- [Yapılandırma](#yapılandırma)
-- [Proje yapısı](#proje-yapısı)
-- [Teknik yol haritası](#teknik-yol-haritası)
-- [Geliştirme standartları](#geliştirme-standartları)
-
-## Proje durumu
-
-| Bileşen | Durum |
+| Modül | Sorumluluk |
 | --- | --- |
-| ASP.NET Core API host | Hazır |
-| Temel servis endpoint'i | Hazır |
-| Ürün ve kategori kataloğu | Planlandı |
-| Kalıcı veri erişimi | Planlandı |
-| Entity Framework Core | Planlandı |
-| Sepet, stok ve sipariş yönetimi | Planlandı |
-| Kimlik doğrulama ve yetkilendirme | Planlandı |
-| Otomatik testler | Planlandı |
-| Container ve deployment | Planlandı |
+| Catalog | Ürün ve kategori yönetimi |
+| Inventory | Stok miktarı ve stok hareketleri |
+| Cart | Kullanıcı sepeti ve sepet kalemleri |
+| Ordering | Sipariş oluşturma, sipariş kalemleri ve durum yönetimi |
+| Identity | Kullanıcı, rol, authentication ve authorization |
+| Platform | Hata yönetimi, logging, caching ve health checks |
 
-Mevcut sürüm production kullanımı için hazır değildir.
+Ödeme ve kargo sağlayıcısı entegrasyonları çekirdek kapsam tamamlandıktan sonra ayrı dış servis adaptörleri olarak ele alınacaktır.
+
+## Hedef mimari
+
+Solution, iş alanı büyüdükçe aşağıdaki sorumluluklara ayrılacaktır:
+
+```text
+src/
+├── ECommerce.Api
+├── ECommerce.Application
+├── ECommerce.Domain
+└── ECommerce.Infrastructure
+
+tests/
+├── ECommerce.UnitTests
+└── ECommerce.IntegrationTests
+```
+
+| Proje | Sorumluluk |
+| --- | --- |
+| `ECommerce.Api` | HTTP endpoint'leri, middleware ve uygulama başlangıcı |
+| `ECommerce.Application` | Use-case'ler, DTO'lar, validation ve servis sözleşmeleri |
+| `ECommerce.Domain` | Entity'ler, value object'ler ve iş kuralları |
+| `ECommerce.Infrastructure` | Entity Framework Core, veritabanı ve dış servis adaptörleri |
+| `ECommerce.UnitTests` | Domain ve application davranışlarının izole testleri |
+| `ECommerce.IntegrationTests` | API ve veri erişim akışlarının bütünleşik testleri |
+
+Bağımlılık yönü iç katmanlara doğrudur. Domain katmanı framework ve veri erişim detaylarından bağımsız tutulur. API projesi composition root görevi görür ve bağımlılıkları Dependency Injection aracılığıyla bir araya getirir.
+
+Katmanlar başlangıçta yapay olarak oluşturulmaz; ilgili sorumluluk ortaya çıktığında solution'a eklenir.
 
 ## Teknoloji yığını
 
-### Mevcut
-
-| Teknoloji | Kullanım |
+| Alan | Teknoloji / yaklaşım |
 | --- | --- |
-| C# | Uygulama dili |
-| .NET 10 | Hedef framework ve çalışma platformu |
-| ASP.NET Core Minimal API | HTTP endpoint tanımları ve uygulama host'u |
-| Kestrel | Web sunucusu |
-| JSON | API veri alışveriş formatı |
+| Dil | C# |
+| Platform | .NET 10 |
+| Web | ASP.NET Core Web API |
+| Sunucu | Kestrel |
+| Veri erişimi | Entity Framework Core |
+| Veritabanı | İlişkisel veritabanı |
+| API dokümantasyonu | OpenAPI / Swagger |
+| Authentication | ASP.NET Core Identity ve JWT |
+| Authorization | Role ve policy tabanlı yetkilendirme |
+| Test | xUnit ve ASP.NET Core integration testing |
+| Container | Docker |
+| Veri formatı | JSON |
 
-Projede nullable reference types ve implicit global usings etkindir.
+## Tasarım ilkeleri
 
-### Planlanan
+- Domain kuralları HTTP ve veritabanı detaylarından ayrılır.
+- API sınırlarında entity yerine request/response DTO'ları kullanılır.
+- Bağımlılıklar doğrudan oluşturulmak yerine Dependency Injection ile sağlanır.
+- I/O işlemleri asenkron yürütülür ve uygun noktalarda `CancellationToken` desteklenir.
+- Girdiler işleme alınmadan önce doğrulanır.
+- Liste endpoint'lerinde filtering, sorting ve pagination uygulanır.
+- Birden fazla veri değişikliğinin tutarlılığı transaction ile korunur.
+- Gizli bilgiler kaynak kodda veya repository'de tutulmaz.
+- Yeni abstraction ve dependency yalnızca somut bir gereksinim olduğunda eklenir.
 
-- Entity Framework Core
-- İlişkisel veritabanı
-- OpenAPI/Swagger
-- Validation
-- JWT tabanlı authentication
-- Role ve policy tabanlı authorization
-- Unit ve integration testleri
-- Docker
-- CI/CD
+## API standartları
 
-Planlanan teknolojiler, ilgili iş gereksinimi uygulanırken kesinleştirilecektir.
+- Kaynak odaklı REST endpoint'leri kullanılır.
+- JSON property adları `camelCase` biçimindedir.
+- HTTP durum kodları işlem sonucunu doğru şekilde ifade eder.
+- Validation ve iş kuralı hataları tutarlı bir hata sözleşmesiyle döndürülür.
+- Beklenmeyen hatalar merkezi exception handling üzerinden RFC 7807 Problem Details formatına çevrilir.
+- Kimlik doğrulama ve yetkilendirme birbirinden ayrı ele alınır.
+- API sözleşmesinin kaynak noktası OpenAPI dokümanıdır.
+
+Değişken endpoint kataloğu README içinde tekrar edilmez. OpenAPI entegrasyonu tamamlandığında request/response şemaları ve endpoint'ler Swagger arayüzünden yayınlanacaktır. Repository içindeki [ECommerce.Api.http](src/ECommerce.Api/ECommerce.Api.http) dosyası geliştirme sırasında hızlı HTTP kontrolleri için kullanılabilir.
 
 ## Başlangıç
 
@@ -70,13 +96,11 @@ Planlanan teknolojiler, ilgili iş gereksinimi uygulanırken kesinleştirilecekt
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Git
 
-Kurulu SDK sürümünü kontrol edin:
+SDK kurulumunu doğrulayın:
 
 ```bash
 dotnet --version
 ```
-
-### Kurulum
 
 Repository'yi klonlayın:
 
@@ -103,52 +127,30 @@ API'yi çalıştırın:
 dotnet run --project src/ECommerce.Api/ECommerce.Api.csproj
 ```
 
-HTTP profili varsayılan olarak aşağıdaki adresi kullanır:
+Varsayılan HTTP adresi:
 
 ```text
 http://localhost:5080
 ```
 
-## API
-
-### Servis durumu
-
-```http
-GET /
-```
-
-Başarılı cevap:
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-```
-
-```json
-{
-  "message": "ECommerce API is running."
-}
-```
-
-Terminal üzerinden örnek istek:
+Servisin çalıştığını doğrulayın:
 
 ```bash
 curl http://localhost:5080/
 ```
 
-IDE HTTP istemcileri için hazır istek [ECommerce.Api.http](src/ECommerce.Api/ECommerce.Api.http) dosyasında bulunur.
-
 ## Yapılandırma
 
-Uygulama ASP.NET Core'un standart yapılandırma sistemini kullanır.
+ASP.NET Core yapılandırması aşağıdaki kaynaklardan sağlanır:
 
-| Dosya | Amaç |
-| --- | --- |
-| `appsettings.json` | Ortak uygulama ayarları |
-| `appsettings.Development.json` | Development ortamına özel ayarlar |
-| `Properties/launchSettings.json` | Yerel çalışma profilleri ve URL'ler |
+1. `appsettings.json`
+2. Ortama özel `appsettings.{Environment}.json`
+3. Environment variable'lar
+4. Komut satırı parametreleri
 
-Aktif ortam `ASPNETCORE_ENVIRONMENT` değişkeniyle belirlenir. Parolalar, bağlantı bilgileri, token'lar ve diğer gizli değerler repository'ye eklenmemelidir. Yerel geliştirmede environment variable kullanılmalıdır.
+Aktif ortam `ASPNETCORE_ENVIRONMENT` değişkeniyle belirlenir. Hassas değerler configuration dosyalarına yazılmaz; environment variable veya güvenli bir secret store üzerinden sağlanır.
+
+Yerel çalışma profilleri [launchSettings.json](src/ECommerce.Api/Properties/launchSettings.json) dosyasında tanımlıdır.
 
 HTTPS profilini çalıştırmak için:
 
@@ -158,103 +160,70 @@ dotnet run \
   --launch-profile https
 ```
 
-HTTPS profili `https://localhost:7080` adresini kullanır.
+## Veri erişimi ve ORM
 
-## Proje yapısı
+Entity Framework Core, uygulamanın ORM katmanı olarak kullanılacaktır.
 
-```text
-eTicaretAPI/
-├── .gitignore
-├── ECommerce.slnx
-├── README.md
-└── src/
-    └── ECommerce.Api/
-        ├── Properties/
-        │   └── launchSettings.json
-        ├── appsettings.Development.json
-        ├── appsettings.json
-        ├── ECommerce.Api.csproj
-        ├── ECommerce.Api.http
-        └── Program.cs
-```
+- Model değişiklikleri migration dosyalarıyla sürümlenir.
+- Migration dosyaları kaynak kontrolüne dahil edilir.
+- Okuma sorgularında gereksiz tracking önlenir.
+- İlişkiler ve constraint'ler hem domain kurallarıyla hem veritabanı seviyesinde korunur.
+- Veritabanı erişimi application katmanına interface'ler üzerinden sunulur.
+- Transaction sınırları iş akışına göre belirlenir.
+- Production veritabanı güncellemeleri kontrollü deployment adımı olarak uygulanır.
 
-| Yol | Sorumluluk |
-| --- | --- |
-| `ECommerce.slnx` | Solution içindeki projeleri organize eder |
-| `src/ECommerce.Api` | HTTP host'u, endpoint'ler ve API yapılandırması |
-| `Program.cs` | Uygulama başlangıcı ve request pipeline |
-| `ECommerce.Api.csproj` | Hedef framework ve proje bağımlılıkları |
+## Güvenlik
 
-Yeni katmanlar ve projeler yalnızca domain karmaşıklığı gerektirdiğinde eklenecektir.
+- Parolalar düz metin olarak saklanmaz.
+- Authentication için kısa ömürlü access token ve kontrollü refresh token akışı kullanılır.
+- Endpoint erişimleri role veya policy ile sınırlandırılır.
+- Kullanıcıdan gelen bütün girdiler güvenilmeyen veri olarak kabul edilir.
+- Hassas veriler log mesajlarına yazılmaz.
+- HTTPS production ortamında zorunludur.
+- Yetkilendirme yalnızca istemci tarafı kontrollere bırakılmaz.
 
-## Teknik yol haritası
+## Test stratejisi
 
-### 1. Ürün kataloğu
+- Domain iş kuralları unit testlerle doğrulanır.
+- Application use-case'leri bağımlılıkları izole edilerek test edilir.
+- HTTP sözleşmeleri ve veri erişimi integration testlerle doğrulanır.
+- Kritik sipariş ve stok senaryoları başarı, hata ve eş zamanlılık durumlarını kapsar.
+- Her hata düzeltmesi mümkün olduğunda regression testiyle korunur.
 
-- Product ve Category modelleri
-- CRUD endpoint'leri
-- DTO ve request/response sözleşmeleri
-- Girdi doğrulama
-- Filtering, sorting ve pagination
-
-### 2. Veri erişimi
-
-- Entity Framework Core entegrasyonu
-- Veritabanı provider yapılandırması
-- Migration yönetimi
-- Entity ilişkileri ve veri bütünlüğü
-- Asenkron sorgular ve transaction yönetimi
-
-### 3. Ticaret akışları
-
-- Sepet yönetimi
-- Stok kontrolü
-- Sipariş ve sipariş kalemleri
-- Fiyat hesaplama
-- Eş zamanlı güncelleme senaryoları
-
-### 4. Güvenlik
-
-- Kullanıcı ve rol yönetimi
-- Authentication
-- Role/policy tabanlı authorization
-- JWT access ve refresh token akışı
-- Güvenli secret yönetimi
-
-### 5. Production hazırlığı
-
-- Merkezi hata yönetimi ve Problem Details
-- Structured logging ve health checks
-- Unit ve integration testleri
-- Docker
-- CI/CD pipeline
-- İzlenebilirlik ve performans iyileştirmeleri
-
-## Geliştirme standartları
-
-- Kod ve domain isimleri İngilizce yazılır.
-- Değişiklikler küçük, odaklı ve derlenebilir tutulur.
-- API sözleşmeleri geriye uyumluluk dikkate alınarak değiştirilir.
-- Gizli bilgiler kaynak kodda veya configuration dosyalarında tutulmaz.
-- Yeni bağımlılıklar yalnızca açık bir gereksinim olduğunda eklenir.
-- Her değişiklikte en azından solution build'i doğrulanır.
-
-Temel doğrulama komutu:
+Temel kalite kontrolleri:
 
 ```bash
 dotnet build ECommerce.slnx --no-restore
+dotnet test ECommerce.slnx --no-build
 ```
 
-Commit mesajlarında Conventional Commits türleri tercih edilir:
+## Geliştirme ve sürümleme
+
+Commit mesajlarında Conventional Commits biçimi kullanılır:
 
 ```text
 feat: add product creation endpoint
 fix: prevent negative stock values
-docs: update API usage
+docs: update project documentation
 refactor: extract product service
 test: cover product validation
 chore: update project configuration
 ```
+
+Değişiklik geçmişi README içinde günlük olarak çoğaltılmaz. Gelişim; Git commit geçmişi, pull request'ler ve gerektiğinde GitHub Releases üzerinden takip edilir.
+
+## Yol haritası
+
+1. Ürün ve kategori kataloğu
+2. Entity Framework Core ve kalıcı veri erişimi
+3. DTO, validation ve standart hata sözleşmesi
+4. Filtering, sorting ve pagination
+5. Sepet ve stok yönetimi
+6. Sipariş ve transaction akışları
+7. Identity, JWT ve yetkilendirme
+8. Logging, caching ve health checks
+9. Unit ve integration test kapsamı
+10. Docker, CI/CD ve production deployment
 
 ## Maintainer
 
