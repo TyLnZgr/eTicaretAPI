@@ -35,3 +35,5 @@ secrets.json
 # Operating system files
 .DS_Store
 Thumbs.db
+
+docs/LEARNING_NOTES.md

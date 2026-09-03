@@ -14,3 +14,93 @@ GET {{ECommerce.Api_HostAddress}}/api/products
 Accept: application/json
 
 ###
+
+GET {{ECommerce.Api_HostAddress}}/api/products/999
+Accept: application/json
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/products/not-a-number
+Accept: application/json
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "USB-C Hub",
+  "price": 899.90,
+  "stockQuantity": 15,
+  "isActive": true
+}
+
+###
+
+PUT {{ECommerce.Api_HostAddress}}/api/products/2
+Content-Type: application/json
+
+{
+  "name": "Ergonomic Wireless Mouse",
+  "price": 1499.90,
+  "stockQuantity": 30,
+  "isActive": true
+}
+
+###
+
+PUT {{ECommerce.Api_HostAddress}}/api/products/999
+Content-Type: application/json
+
+{
+  "name": "Unknown Product",
+  "price": 100,
+  "stockQuantity": 1,
+  "isActive": true
+}
+
+###
+
+DELETE {{ECommerce.Api_HostAddress}}/api/products/3
+
+###
+
+DELETE {{ECommerce.Api_HostAddress}}/api/products/999
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": " ",
+  "price": 100,
+  "stockQuantity": 1,
+  "isActive": true
+}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Invalid Price Product",
+  "price": 0,
+  "stockQuantity": 1,
+  "isActive": true
+}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Invalid Stock Product",
+  "price": 100,
+  "stockQuantity": -1,
+  "isActive": true
+}
+
+###
