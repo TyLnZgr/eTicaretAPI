@@ -1,6 +1,6 @@
 using ECommerce.Api.Models;
 
-namespace ECommerce.Api.Services.Results;
+namespace ECommerce.Api.Features.Products.Outcomes;
 
 public enum ProductMutationStatus
 {

@@ -1,14 +1,14 @@
-using ECommerce.Api.Models;
-using ECommerce.Api.Services.Results;
+using ECommerce.Api.Features.Products.Dtos;
+using ECommerce.Api.Features.Products.Outcomes;
 
-namespace ECommerce.Api.Services;
+namespace ECommerce.Api.Features.Products.Services;
 
 public interface IProductService
 {
-    Task<IReadOnlyList<Product>> GetAllAsync(
+    Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
-    Task<Product?> GetByIdAsync(
+    Task<ProductResponse?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default);
 

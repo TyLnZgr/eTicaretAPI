@@ -1,12 +1,22 @@
+using ECommerce.Api.Features.Products.Dtos;
+using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Models;
-using ECommerce.Api.Services.Results;
 
-namespace ECommerce.Api.Services;
+namespace ECommerce.Api.Features.Products.Services;
 
 public class InMemoryProductService : IProductService
 {
     private readonly List<Product> _products;
-    private readonly HashSet<int> _categoryIds = new() { 1 };
+    private readonly Dictionary<int, Category> _categories = new()
+    {
+        [1] = new Category
+        {
+            Id = 1,
+            Name = "Uncategorized",
+            IsActive = true
+        }
+    };
+
     public InMemoryProductService()
     {
         _products = new List<Product>
@@ -17,6 +27,8 @@ public class InMemoryProductService : IProductService
                 Name = "Mechanical Keyboard",
                 Price = 2499.90m,
                 StockQuantity = 25,
+                CategoryId = 1,
+                Category = _categories[1],
                 IsActive = true
             },
             new Product
@@ -25,6 +37,8 @@ public class InMemoryProductService : IProductService
                 Name = "Wireless Mouse",
                 Price = 1299.50m,
                 StockQuantity = 40,
+                CategoryId = 1,
+                Category = _categories[1],
                 IsActive = true
             },
             new Product
@@ -33,30 +47,37 @@ public class InMemoryProductService : IProductService
                 Name = "4K Monitor",
                 Price = 12999.00m,
                 StockQuantity = 0,
+                CategoryId = 1,
+                Category = _categories[1],
                 IsActive = false
             }
         };
     }
 
-    public Task<IReadOnlyList<Product>> GetAllAsync(
+    public Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        IReadOnlyList<Product> products = _products.ToArray();
+        IReadOnlyList<ProductResponse> products = _products
+            .Select(ToResponse)
+            .ToArray();
 
         return Task.FromResult(products);
     }
 
-    public Task<Product?> GetByIdAsync(
+    public Task<ProductResponse?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var product = FindById(id);
+        var response = product is null
+            ? null
+            : ToResponse(product);
 
-        return Task.FromResult(product);
+        return Task.FromResult(response);
     }
 
     public Task<ProductMutationResult> CreateAsync(
@@ -69,7 +90,7 @@ public class InMemoryProductService : IProductService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_categoryIds.Contains(categoryId))
+        if (!_categories.TryGetValue(categoryId, out var category))
         {
             return Task.FromResult(
                 new ProductMutationResult(
@@ -90,6 +111,7 @@ public class InMemoryProductService : IProductService
             Price = price,
             StockQuantity = stockQuantity,
             CategoryId = categoryId,
+            Category = category,
             IsActive = isActive
         };
 
@@ -121,7 +143,7 @@ public class InMemoryProductService : IProductService
                     ProductMutationStatus.ProductNotFound));
         }
 
-        if (!_categoryIds.Contains(categoryId))
+        if (!_categories.TryGetValue(categoryId, out var category))
         {
             return Task.FromResult(
                 new ProductMutationResult(
@@ -132,6 +154,7 @@ public class InMemoryProductService : IProductService
         product.Price = price;
         product.StockQuantity = stockQuantity;
         product.CategoryId = categoryId;
+        product.Category = category;
         product.IsActive = isActive;
 
         return Task.FromResult(
@@ -161,5 +184,17 @@ public class InMemoryProductService : IProductService
     private Product? FindById(int id)
     {
         return _products.FirstOrDefault(candidate => candidate.Id == id);
+    }
+
+    private static ProductResponse ToResponse(Product product)
+    {
+        return new ProductResponse(
+            product.Id,
+            product.Name,
+            product.Price,
+            product.StockQuantity,
+            product.IsActive,
+            product.CategoryId,
+            product.Category.Name);
     }
 }

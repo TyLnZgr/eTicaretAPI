@@ -1,6 +1,6 @@
-namespace ECommerce.Api.Contracts.Products;
+namespace ECommerce.Api.Features.Products.Dtos;
 
-public class UpdateProductRequest
+public class CreateProductRequest
 {
     public int CategoryId { get; set; }
     public string Name { get; set; } = string.Empty;

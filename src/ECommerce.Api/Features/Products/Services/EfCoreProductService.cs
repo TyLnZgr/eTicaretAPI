@@ -1,9 +1,10 @@
 using ECommerce.Api.Data;
+using ECommerce.Api.Features.Products.Dtos;
+using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using ECommerce.Api.Services.Results;
 
-namespace ECommerce.Api.Services;
+namespace ECommerce.Api.Features.Products.Services;
 
 public class EfCoreProductService : IProductService
 {
@@ -14,21 +15,41 @@ public class EfCoreProductService : IProductService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<Product>> GetAllAsync(
+    public async Task<IReadOnlyList<ProductResponse>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Products
             .AsNoTracking()
+            .OrderBy(product => product.Id)
+            .Select(product => new ProductResponse(
+                product.Id,
+                product.Name,
+                product.Price,
+                product.StockQuantity,
+                product.IsActive,
+                product.CategoryId,
+                product.Category.Name))
             .ToListAsync(cancellationToken);
     }
-    public async Task<Product?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+
+    public async Task<ProductResponse?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
         return await _dbContext.Products
             .AsNoTracking()
-            .SingleOrDefaultAsync(
-                product => product.Id == id,
-                cancellationToken);
+            .Where(product => product.Id == id)
+            .Select(product => new ProductResponse(
+                product.Id,
+                product.Name,
+                product.Price,
+                product.StockQuantity,
+                product.IsActive,
+                product.CategoryId,
+                product.Category.Name))
+            .SingleOrDefaultAsync(cancellationToken);
     }
+
     public async Task<ProductMutationResult> CreateAsync(
         string name,
         decimal price,
@@ -37,12 +58,12 @@ public class EfCoreProductService : IProductService
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        var categoryExists = await _dbContext.Categories
-            .AnyAsync(
+        var category = await _dbContext.Categories
+            .SingleOrDefaultAsync(
                 category => category.Id == categoryId,
                 cancellationToken);
 
-        if (!categoryExists)
+        if (category is null)
         {
             return new ProductMutationResult(
                 ProductMutationStatus.CategoryNotFound);
@@ -54,6 +75,7 @@ public class EfCoreProductService : IProductService
             Price = price,
             StockQuantity = stockQuantity,
             CategoryId = categoryId,
+            Category = category,
             IsActive = isActive
         };
 
@@ -66,13 +88,13 @@ public class EfCoreProductService : IProductService
             product);
     }
     public async Task<ProductMutationResult> UpdateAsync(
-    int id,
-    string name,
-    decimal price,
-    int stockQuantity,
-    int categoryId,
-    bool isActive,
-    CancellationToken cancellationToken = default)
+        int id,
+        string name,
+        decimal price,
+        int stockQuantity,
+        int categoryId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
         var product = await _dbContext.Products
             .SingleOrDefaultAsync(
@@ -85,12 +107,12 @@ public class EfCoreProductService : IProductService
                 ProductMutationStatus.ProductNotFound);
         }
 
-        var categoryExists = await _dbContext.Categories
-            .AnyAsync(
+        var category = await _dbContext.Categories
+            .SingleOrDefaultAsync(
                 category => category.Id == categoryId,
                 cancellationToken);
 
-        if (!categoryExists)
+        if (category is null)
         {
             return new ProductMutationResult(
                 ProductMutationStatus.CategoryNotFound);
@@ -100,6 +122,7 @@ public class EfCoreProductService : IProductService
         product.Price = price;
         product.StockQuantity = stockQuantity;
         product.CategoryId = categoryId;
+        product.Category = category;
         product.IsActive = isActive;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
