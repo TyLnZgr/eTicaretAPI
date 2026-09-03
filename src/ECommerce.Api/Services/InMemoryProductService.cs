@@ -1,11 +1,12 @@
 using ECommerce.Api.Models;
+using ECommerce.Api.Services.Results;
 
 namespace ECommerce.Api.Services;
 
 public class InMemoryProductService : IProductService
 {
     private readonly List<Product> _products;
-
+    private readonly HashSet<int> _categoryIds = new() { 1 };
     public InMemoryProductService()
     {
         _products = new List<Product>
@@ -58,14 +59,22 @@ public class InMemoryProductService : IProductService
         return Task.FromResult(product);
     }
 
-    public Task<Product> CreateAsync(
-        string name,
-        decimal price,
-        int stockQuantity,
-        bool isActive,
-        CancellationToken cancellationToken = default)
+    public Task<ProductMutationResult> CreateAsync(
+    string name,
+    decimal price,
+    int stockQuantity,
+    int categoryId,
+    bool isActive,
+    CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_categoryIds.Contains(categoryId))
+        {
+            return Task.FromResult(
+                new ProductMutationResult(
+                    ProductMutationStatus.CategoryNotFound));
+        }
 
         var nextId = 1;
 
@@ -80,21 +89,26 @@ public class InMemoryProductService : IProductService
             Name = name,
             Price = price,
             StockQuantity = stockQuantity,
+            CategoryId = categoryId,
             IsActive = isActive
         };
 
         _products.Add(product);
 
-        return Task.FromResult(product);
+        return Task.FromResult(
+            new ProductMutationResult(
+                ProductMutationStatus.Success,
+                product));
     }
 
-    public Task<Product?> UpdateAsync(
-        int id,
-        string name,
-        decimal price,
-        int stockQuantity,
-        bool isActive,
-        CancellationToken cancellationToken = default)
+    public Task<ProductMutationResult> UpdateAsync(
+    int id,
+    string name,
+    decimal price,
+    int stockQuantity,
+    int categoryId,
+    bool isActive,
+    CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -102,15 +116,28 @@ public class InMemoryProductService : IProductService
 
         if (product is null)
         {
-            return Task.FromResult<Product?>(null);
+            return Task.FromResult(
+                new ProductMutationResult(
+                    ProductMutationStatus.ProductNotFound));
+        }
+
+        if (!_categoryIds.Contains(categoryId))
+        {
+            return Task.FromResult(
+                new ProductMutationResult(
+                    ProductMutationStatus.CategoryNotFound));
         }
 
         product.Name = name;
         product.Price = price;
         product.StockQuantity = stockQuantity;
+        product.CategoryId = categoryId;
         product.IsActive = isActive;
 
-        return Task.FromResult<Product?>(product);
+        return Task.FromResult(
+            new ProductMutationResult(
+                ProductMutationStatus.Success,
+                product));
     }
 
     public Task<bool> DeleteAsync(

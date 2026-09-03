@@ -2,6 +2,7 @@ using ECommerce.Api.Contracts.Products;
 using ECommerce.Api.Data;
 using ECommerce.Api.Services;
 using Microsoft.EntityFrameworkCore;
+using ECommerce.Api.Services.Results;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -76,15 +77,38 @@ app.MapPost("/api/products", async (
             message = "Product stock quantity cannot be negative."
         });
     }
+    if (request.CategoryId <= 0)
+    {
+        return Results.BadRequest(new
+        {
+            message = "A valid category ID is required."
+        });
+    }
+    var result = await productService.CreateAsync(
+    request.Name.Trim(),
+    request.Price,
+    request.StockQuantity,
+    request.CategoryId,
+    request.IsActive,
+    cancellationToken);
 
-    var product = await productService.CreateAsync(
-        request.Name.Trim(),
-        request.Price,
-        request.StockQuantity,
-        request.IsActive,
-        cancellationToken);
+    if (result.Status == ProductMutationStatus.CategoryNotFound)
+    {
+        return Results.NotFound(new
+        {
+            message = $"Category with ID {request.CategoryId} was not found."
+        });
+    }
 
-    return Results.Created($"/api/products/{product.Id}", product);
+    if (result.Product is null)
+    {
+        return Results.Problem(
+            "Product creation completed without a product.");
+    }
+
+    return Results.Created(
+        $"/api/products/{result.Product.Id}",
+        result.Product);
 });
 
 app.MapPut("/api/products/{id:int}", async (
@@ -100,7 +124,13 @@ app.MapPut("/api/products/{id:int}", async (
             message = "Product name is required."
         });
     }
-
+    if (request.CategoryId <= 0)
+    {
+        return Results.BadRequest(new
+        {
+            message = "A valid category ID is required."
+        });
+    }
     if (request.Price <= 0)
     {
         return Results.BadRequest(new
@@ -117,15 +147,16 @@ app.MapPut("/api/products/{id:int}", async (
         });
     }
 
-    var product = await productService.UpdateAsync(
-        id,
-        request.Name.Trim(),
-        request.Price,
-        request.StockQuantity,
-        request.IsActive,
-        cancellationToken);
+    var result = await productService.UpdateAsync(
+    id,
+    request.Name.Trim(),
+    request.Price,
+    request.StockQuantity,
+    request.CategoryId,
+    request.IsActive,
+    cancellationToken);
 
-    if (product is null)
+    if (result.Status == ProductMutationStatus.ProductNotFound)
     {
         return Results.NotFound(new
         {
@@ -133,7 +164,21 @@ app.MapPut("/api/products/{id:int}", async (
         });
     }
 
-    return Results.Ok(product);
+    if (result.Status == ProductMutationStatus.CategoryNotFound)
+    {
+        return Results.NotFound(new
+        {
+            message = $"Category with ID {request.CategoryId} was not found."
+        });
+    }
+
+    if (result.Product is null)
+    {
+        return Results.Problem(
+            "Product update completed without a product.");
+    }
+
+    return Results.Ok(result.Product);
 });
 
 app.MapDelete("/api/products/{id:int}", async (

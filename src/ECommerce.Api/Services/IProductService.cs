@@ -1,4 +1,5 @@
 using ECommerce.Api.Models;
+using ECommerce.Api.Services.Results;
 
 namespace ECommerce.Api.Services;
 
@@ -11,18 +12,20 @@ public interface IProductService
         int id,
         CancellationToken cancellationToken = default);
 
-    Task<Product> CreateAsync(
+    Task<ProductMutationResult> CreateAsync(
         string name,
         decimal price,
         int stockQuantity,
+         int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default);
 
-    Task<Product?> UpdateAsync(
+    Task<ProductMutationResult> UpdateAsync(
         int id,
         string name,
         decimal price,
         int stockQuantity,
+         int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default);
 

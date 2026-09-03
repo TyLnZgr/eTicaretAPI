@@ -2,6 +2,7 @@
 using ECommerce.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -9,44 +10,19 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ECommerce.Api.Data.Migrations
 {
     [DbContext(typeof(ECommerceDbContext))]
-    partial class ECommerceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903125441_AddProductConstraints")]
+    partial class AddProductConstraints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
-
-            modelBuilder.Entity("ECommerce.Api.Models.Category", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Categories", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_Categories_IsActive_Valid", "\"IsActive\" IN (0, 1)");
-
-                            t.HasCheckConstraint("CK_Categories_Name_Valid", "length(trim(\"Name\")) BETWEEN 1 AND 100");
-                        });
-                });
 
             modelBuilder.Entity("ECommerce.Api.Models.Product", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("CategoryId")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsActive")
@@ -66,8 +42,6 @@ namespace ECommerce.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
-
                     b.ToTable("Products", null, t =>
                         {
                             t.HasCheckConstraint("CK_Products_IsActive_Valid", "\"IsActive\" IN (0, 1)");
@@ -78,22 +52,6 @@ namespace ECommerce.Api.Data.Migrations
 
                             t.HasCheckConstraint("CK_Products_StockQuantity_NonNegative", "\"StockQuantity\" >= 0");
                         });
-                });
-
-            modelBuilder.Entity("ECommerce.Api.Models.Product", b =>
-                {
-                    b.HasOne("ECommerce.Api.Models.Category", "Category")
-                        .WithMany("Products")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
-            modelBuilder.Entity("ECommerce.Api.Models.Category", b =>
-                {
-                    b.Navigation("Products");
                 });
 #pragma warning restore 612, 618
         }
