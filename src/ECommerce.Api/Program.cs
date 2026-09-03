@@ -1,9 +1,18 @@
 using ECommerce.Api.Contracts.Products;
+using ECommerce.Api.Data;
 using ECommerce.Api.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IProductService, InMemoryProductService>();
+var connectionString = builder.Configuration.GetConnectionString("ECommerceDatabase")
+    ?? throw new InvalidOperationException(
+        "Connection string 'ECommerceDatabase' was not found.");
+
+builder.Services.AddDbContext<ECommerceDbContext>(options =>
+    options.UseSqlite(connectionString));
+
+builder.Services.AddScoped<IProductService, EfCoreProductService>();
 
 var app = builder.Build();
 
@@ -12,14 +21,21 @@ app.MapGet("/", () => new
     message = "ECommerce API is running."
 });
 
-app.MapGet("/api/products", (IProductService productService) =>
+app.MapGet("/api/products", async (
+    IProductService productService,
+    CancellationToken cancellationToken) =>
 {
-    return productService.GetAll();
+    var products = await productService.GetAllAsync(cancellationToken);
+
+    return Results.Ok(products);
 });
 
-app.MapGet("/api/products/{id:int}", (int id, IProductService productService) =>
+app.MapGet("/api/products/{id:int}", async (
+    int id,
+    IProductService productService,
+    CancellationToken cancellationToken) =>
 {
-    var product = productService.GetById(id);
+    var product = await productService.GetByIdAsync(id, cancellationToken);
 
     if (product is null)
     {
@@ -32,9 +48,10 @@ app.MapGet("/api/products/{id:int}", (int id, IProductService productService) =>
     return Results.Ok(product);
 });
 
-app.MapPost("/api/products", (
+app.MapPost("/api/products", async (
     CreateProductRequest request,
-    IProductService productService) =>
+    IProductService productService,
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Name))
     {
@@ -60,19 +77,21 @@ app.MapPost("/api/products", (
         });
     }
 
-    var product = productService.Create(
+    var product = await productService.CreateAsync(
         request.Name.Trim(),
         request.Price,
         request.StockQuantity,
-        request.IsActive);
+        request.IsActive,
+        cancellationToken);
 
     return Results.Created($"/api/products/{product.Id}", product);
 });
 
-app.MapPut("/api/products/{id:int}", (
+app.MapPut("/api/products/{id:int}", async (
     int id,
     UpdateProductRequest request,
-    IProductService productService) =>
+    IProductService productService,
+    CancellationToken cancellationToken) =>
 {
     if (string.IsNullOrWhiteSpace(request.Name))
     {
@@ -98,12 +117,13 @@ app.MapPut("/api/products/{id:int}", (
         });
     }
 
-    var product = productService.Update(
+    var product = await productService.UpdateAsync(
         id,
         request.Name.Trim(),
         request.Price,
         request.StockQuantity,
-        request.IsActive);
+        request.IsActive,
+        cancellationToken);
 
     if (product is null)
     {
@@ -116,11 +136,12 @@ app.MapPut("/api/products/{id:int}", (
     return Results.Ok(product);
 });
 
-app.MapDelete("/api/products/{id:int}", (
+app.MapDelete("/api/products/{id:int}", async (
     int id,
-    IProductService productService) =>
+    IProductService productService,
+    CancellationToken cancellationToken) =>
 {
-    var wasDeleted = productService.Delete(id);
+    var wasDeleted = await productService.DeleteAsync(id, cancellationToken);
 
     if (!wasDeleted)
     {

@@ -37,22 +37,36 @@ public class InMemoryProductService : IProductService
         };
     }
 
-    public IReadOnlyList<Product> GetAll()
+    public Task<IReadOnlyList<Product>> GetAllAsync(
+        CancellationToken cancellationToken = default)
     {
-        return _products.ToArray();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        IReadOnlyList<Product> products = _products.ToArray();
+
+        return Task.FromResult(products);
     }
 
-    public Product? GetById(int id)
+    public Task<Product?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
-        return _products.FirstOrDefault(candidate => candidate.Id == id);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var product = FindById(id);
+
+        return Task.FromResult(product);
     }
 
-    public Product Create(
+    public Task<Product> CreateAsync(
         string name,
         decimal price,
         int stockQuantity,
-        bool isActive)
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var nextId = 1;
 
         if (_products.Count > 0)
@@ -71,21 +85,24 @@ public class InMemoryProductService : IProductService
 
         _products.Add(product);
 
-        return product;
+        return Task.FromResult(product);
     }
 
-    public Product? Update(
+    public Task<Product?> UpdateAsync(
         int id,
         string name,
         decimal price,
         int stockQuantity,
-        bool isActive)
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
-        var product = GetById(id);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var product = FindById(id);
 
         if (product is null)
         {
-            return null;
+            return Task.FromResult<Product?>(null);
         }
 
         product.Name = name;
@@ -93,18 +110,29 @@ public class InMemoryProductService : IProductService
         product.StockQuantity = stockQuantity;
         product.IsActive = isActive;
 
-        return product;
+        return Task.FromResult<Product?>(product);
     }
 
-    public bool Delete(int id)
+    public Task<bool> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken = default)
     {
-        var product = GetById(id);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var product = FindById(id);
 
         if (product is null)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
-        return _products.Remove(product);
+        var wasDeleted = _products.Remove(product);
+
+        return Task.FromResult(wasDeleted);
+    }
+
+    private Product? FindById(int id)
+    {
+        return _products.FirstOrDefault(candidate => candidate.Id == id);
     }
 }
