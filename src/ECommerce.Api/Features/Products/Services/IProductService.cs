@@ -6,6 +6,7 @@ namespace ECommerce.Api.Features.Products.Services;
 public interface IProductService
 {
     Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+        ProductQueryParameters queryParameters,
         CancellationToken cancellationToken = default);
 
     Task<ProductResponse?> GetByIdAsync(

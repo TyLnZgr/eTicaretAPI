@@ -2,7 +2,6 @@ using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Models;
-
 namespace ECommerce.Api.Features.Products.Endpoints;
 
 public static class ProductEndpoints
@@ -32,10 +31,47 @@ public static class ProductEndpoints
     }
 
     private static async Task<IResult> GetAllAsync(
+         [AsParameters] ProductQueryParameters queryParameters,
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        var products = await productService.GetAllAsync(cancellationToken);
+        if (queryParameters.CategoryId.HasValue && queryParameters.CategoryId.Value <= 0)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Category ID must be greater than zero."
+            });
+        }
+        if (queryParameters.MinPrice.HasValue &&
+    queryParameters.MinPrice.Value < 0)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Minimum price cannot be negative."
+            });
+        }
+
+        if (queryParameters.MaxPrice.HasValue &&
+            queryParameters.MaxPrice.Value < 0)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Maximum price cannot be negative."
+            });
+        }
+
+        if (queryParameters.MinPrice.HasValue &&
+            queryParameters.MaxPrice.HasValue &&
+            queryParameters.MinPrice.Value > queryParameters.MaxPrice.Value)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Minimum price cannot be greater than maximum price."
+            });
+        }
+        var products = await productService.GetAllAsync(
+            queryParameters,
+            cancellationToken);
 
         return Results.Ok(products);
     }

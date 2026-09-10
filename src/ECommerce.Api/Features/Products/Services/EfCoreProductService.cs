@@ -16,10 +16,42 @@ public class EfCoreProductService : IProductService
     }
 
     public async Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+        ProductQueryParameters queryParameters,
         CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Products
-            .AsNoTracking()
+        var query = _dbContext.Products
+        .AsNoTracking();
+
+        var searchTerm = string.IsNullOrWhiteSpace(queryParameters.Search)
+       ? null
+       : queryParameters.Search.Trim();
+        if (searchTerm is not null)
+        {
+            query = query.Where(product =>
+                product.Name.Contains(searchTerm));
+        }
+        if (queryParameters.CategoryId.HasValue)
+        {
+            query = query.Where(product =>
+                product.CategoryId == queryParameters.CategoryId.Value);
+        }
+        if (queryParameters.IsActive.HasValue)
+        {
+            query = query.Where(product =>
+                product.IsActive == queryParameters.IsActive.Value);
+        }
+        if (queryParameters.MinPrice.HasValue)
+        {
+            query = query.Where(product =>
+                product.Price >= queryParameters.MinPrice.Value);
+        }
+
+        if (queryParameters.MaxPrice.HasValue)
+        {
+            query = query.Where(product =>
+                product.Price <= queryParameters.MaxPrice.Value);
+        }
+        return await query
             .OrderBy(product => product.Id)
             .Select(product => new ProductResponse(
                 product.Id,

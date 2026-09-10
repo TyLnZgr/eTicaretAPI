@@ -55,11 +55,47 @@ public class InMemoryProductService : IProductService
     }
 
     public Task<IReadOnlyList<ProductResponse>> GetAllAsync(
-        CancellationToken cancellationToken = default)
+      ProductQueryParameters queryParameters,
+     CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        IReadOnlyList<ProductResponse> products = _products
+        IEnumerable<Product> query = _products;
+
+        var searchTerm = string.IsNullOrWhiteSpace(queryParameters.Search)
+            ? null
+            : queryParameters.Search.Trim();
+
+        if (searchTerm is not null)
+        {
+            query = query.Where(product =>
+                product.Name.Contains(
+                    searchTerm,
+                    StringComparison.Ordinal));
+        }
+
+        if (queryParameters.CategoryId.HasValue)
+        {
+            query = query.Where(product => product.CategoryId == queryParameters.CategoryId.Value);
+        }
+        if (queryParameters.IsActive.HasValue)
+        {
+            query = query.Where(product =>
+                product.IsActive == queryParameters.IsActive.Value);
+        }
+        if (queryParameters.MinPrice.HasValue)
+        {
+            query = query.Where(product =>
+                product.Price >= queryParameters.MinPrice.Value);
+        }
+
+        if (queryParameters.MaxPrice.HasValue)
+        {
+            query = query.Where(product =>
+                product.Price <= queryParameters.MaxPrice.Value);
+        }
+        IReadOnlyList<ProductResponse> products = query
+            .OrderBy(product => product.Id)
             .Select(ToResponse)
             .ToArray();
 
