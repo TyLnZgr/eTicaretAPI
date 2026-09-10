@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Models;
@@ -54,9 +55,9 @@ public class InMemoryProductService : IProductService
         };
     }
 
-    public Task<IReadOnlyList<ProductResponse>> GetAllAsync(
-      ProductQueryParameters queryParameters,
-     CancellationToken cancellationToken = default)
+    public Task<PagedResult<ProductResponse>> GetAllAsync(
+        ProductQueryParameters queryParameters,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -76,13 +77,16 @@ public class InMemoryProductService : IProductService
 
         if (queryParameters.CategoryId.HasValue)
         {
-            query = query.Where(product => product.CategoryId == queryParameters.CategoryId.Value);
+            query = query.Where(product =>
+                product.CategoryId == queryParameters.CategoryId.Value);
         }
+
         if (queryParameters.IsActive.HasValue)
         {
             query = query.Where(product =>
                 product.IsActive == queryParameters.IsActive.Value);
         }
+
         if (queryParameters.MinPrice.HasValue)
         {
             query = query.Where(product =>
@@ -94,12 +98,69 @@ public class InMemoryProductService : IProductService
             query = query.Where(product =>
                 product.Price <= queryParameters.MaxPrice.Value);
         }
-        IReadOnlyList<ProductResponse> products = query
-            .OrderBy(product => product.Id)
+
+        var totalCount = query.Count();
+
+        var sortBy = string.IsNullOrWhiteSpace(queryParameters.SortBy)
+            ? "id"
+            : queryParameters.SortBy.Trim().ToLowerInvariant();
+
+        var sortDirection =
+            string.IsNullOrWhiteSpace(queryParameters.SortDirection)
+                ? "asc"
+                : queryParameters.SortDirection.Trim().ToLowerInvariant();
+
+        query = (sortBy, sortDirection) switch
+        {
+            ("name", "asc") => query
+                .OrderBy(product => product.Name, StringComparer.Ordinal)
+                .ThenBy(product => product.Id),
+
+            ("name", "desc") => query
+                .OrderByDescending(product => product.Name, StringComparer.Ordinal)
+                .ThenBy(product => product.Id),
+
+            ("stockquantity", "asc") => query
+                .OrderBy(product => product.StockQuantity)
+                .ThenBy(product => product.Id),
+
+            ("stockquantity", "desc") => query
+                .OrderByDescending(product => product.StockQuantity)
+                .ThenBy(product => product.Id),
+
+            ("id", "desc") => query
+                .OrderByDescending(product => product.Id),
+
+            ("price", "asc") => query
+                .OrderBy(product => product.Price)
+                .ThenBy(product => product.Id),
+
+            ("price", "desc") => query
+                .OrderByDescending(product => product.Price)
+                .ThenBy(product => product.Id),
+
+            _ => query.OrderBy(product => product.Id)
+        };
+
+        var page = queryParameters.Page ?? 1;
+        var pageSize = queryParameters.PageSize ?? 20;
+        var skip = (page - 1) * pageSize;
+
+        query = query
+            .Skip(skip)
+            .Take(pageSize);
+
+        IReadOnlyList<ProductResponse> items = query
             .Select(ToResponse)
             .ToArray();
 
-        return Task.FromResult(products);
+        var result = new PagedResult<ProductResponse>(
+            items,
+            page,
+            pageSize,
+            totalCount);
+
+        return Task.FromResult(result);
     }
 
     public Task<ProductResponse?> GetByIdAsync(
@@ -117,12 +178,12 @@ public class InMemoryProductService : IProductService
     }
 
     public Task<ProductMutationResult> CreateAsync(
-    string name,
-    decimal price,
-    int stockQuantity,
-    int categoryId,
-    bool isActive,
-    CancellationToken cancellationToken = default)
+        string name,
+        decimal price,
+        int stockQuantity,
+        int categoryId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -160,13 +221,13 @@ public class InMemoryProductService : IProductService
     }
 
     public Task<ProductMutationResult> UpdateAsync(
-    int id,
-    string name,
-    decimal price,
-    int stockQuantity,
-    int categoryId,
-    bool isActive,
-    CancellationToken cancellationToken = default)
+        int id,
+        string name,
+        decimal price,
+        int stockQuantity,
+        int categoryId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

@@ -2,6 +2,7 @@ using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Models;
+
 namespace ECommerce.Api.Features.Products.Endpoints;
 
 public static class ProductEndpoints
@@ -31,19 +32,21 @@ public static class ProductEndpoints
     }
 
     private static async Task<IResult> GetAllAsync(
-         [AsParameters] ProductQueryParameters queryParameters,
+        [AsParameters] ProductQueryParameters queryParameters,
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        if (queryParameters.CategoryId.HasValue && queryParameters.CategoryId.Value <= 0)
+        if (queryParameters.CategoryId.HasValue &&
+            queryParameters.CategoryId.Value <= 0)
         {
             return Results.BadRequest(new
             {
                 message = "Category ID must be greater than zero."
             });
         }
+
         if (queryParameters.MinPrice.HasValue &&
-    queryParameters.MinPrice.Value < 0)
+            queryParameters.MinPrice.Value < 0)
         {
             return Results.BadRequest(new
             {
@@ -69,11 +72,70 @@ public static class ProductEndpoints
                 message = "Minimum price cannot be greater than maximum price."
             });
         }
-        var products = await productService.GetAllAsync(
+
+        var sortBy = string.IsNullOrWhiteSpace(queryParameters.SortBy)
+            ? "id"
+            : queryParameters.SortBy.Trim().ToLowerInvariant();
+
+        var sortDirection =
+            string.IsNullOrWhiteSpace(queryParameters.SortDirection)
+                ? "asc"
+                : queryParameters.SortDirection.Trim().ToLowerInvariant();
+
+        if (sortBy != "id" &&
+            sortBy != "name" &&
+            sortBy != "price" &&
+            sortBy != "stockquantity")
+        {
+            return Results.BadRequest(new
+            {
+                message = "Sort field must be id, name, price, or stockQuantity."
+            });
+        }
+
+        if (sortDirection != "asc" &&
+            sortDirection != "desc")
+        {
+            return Results.BadRequest(new
+            {
+                message = "Sort direction must be asc or desc."
+            });
+        }
+
+        var page = queryParameters.Page ?? 1;
+        var pageSize = queryParameters.PageSize ?? 20;
+
+        if (page < 1)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Page must be greater than zero."
+            });
+        }
+
+        if (pageSize < 1 || pageSize > 100)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Page size must be between 1 and 100."
+            });
+        }
+
+        var offset = ((long)page - 1) * pageSize;
+
+        if (offset > int.MaxValue)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Requested page is too large."
+            });
+        }
+
+        var result = await productService.GetAllAsync(
             queryParameters,
             cancellationToken);
 
-        return Results.Ok(products);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> GetByIdAsync(

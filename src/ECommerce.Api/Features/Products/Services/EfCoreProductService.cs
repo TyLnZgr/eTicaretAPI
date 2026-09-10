@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
@@ -15,31 +16,35 @@ public class EfCoreProductService : IProductService
         _dbContext = dbContext;
     }
 
-    public async Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+    public async Task<PagedResult<ProductResponse>> GetAllAsync(
         ProductQueryParameters queryParameters,
         CancellationToken cancellationToken = default)
     {
         var query = _dbContext.Products
-        .AsNoTracking();
+            .AsNoTracking();
 
         var searchTerm = string.IsNullOrWhiteSpace(queryParameters.Search)
-       ? null
-       : queryParameters.Search.Trim();
+            ? null
+            : queryParameters.Search.Trim();
+
         if (searchTerm is not null)
         {
             query = query.Where(product =>
                 product.Name.Contains(searchTerm));
         }
+
         if (queryParameters.CategoryId.HasValue)
         {
             query = query.Where(product =>
                 product.CategoryId == queryParameters.CategoryId.Value);
         }
+
         if (queryParameters.IsActive.HasValue)
         {
             query = query.Where(product =>
                 product.IsActive == queryParameters.IsActive.Value);
         }
+
         if (queryParameters.MinPrice.HasValue)
         {
             query = query.Where(product =>
@@ -51,8 +56,57 @@ public class EfCoreProductService : IProductService
             query = query.Where(product =>
                 product.Price <= queryParameters.MaxPrice.Value);
         }
-        return await query
-            .OrderBy(product => product.Id)
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var sortBy = string.IsNullOrWhiteSpace(queryParameters.SortBy)
+            ? "id"
+            : queryParameters.SortBy.Trim().ToLowerInvariant();
+
+        var sortDirection =
+            string.IsNullOrWhiteSpace(queryParameters.SortDirection)
+                ? "asc"
+                : queryParameters.SortDirection.Trim().ToLowerInvariant();
+
+        query = (sortBy, sortDirection) switch
+        {
+            ("name", "asc") => query
+                .OrderBy(product => product.Name)
+                .ThenBy(product => product.Id),
+
+            ("name", "desc") => query
+                .OrderByDescending(product => product.Name)
+                .ThenBy(product => product.Id),
+
+            ("stockquantity", "asc") => query
+                .OrderBy(product => product.StockQuantity)
+                .ThenBy(product => product.Id),
+
+            ("stockquantity", "desc") => query
+                .OrderByDescending(product => product.StockQuantity)
+                .ThenBy(product => product.Id),
+
+            ("id", "desc") => query
+                .OrderByDescending(product => product.Id),
+
+            ("price", "asc") => query
+                .OrderBy(product => product.Price)
+                .ThenBy(product => product.Id),
+
+            ("price", "desc") => query
+                .OrderByDescending(product => product.Price)
+                .ThenBy(product => product.Id),
+
+            _ => query.OrderBy(product => product.Id)
+        };
+
+        var page = queryParameters.Page ?? 1;
+        var pageSize = queryParameters.PageSize ?? 20;
+        var skip = (page - 1) * pageSize;
+
+        var items = await query
+            .Skip(skip)
+            .Take(pageSize)
             .Select(product => new ProductResponse(
                 product.Id,
                 product.Name,
@@ -62,6 +116,12 @@ public class EfCoreProductService : IProductService
                 product.CategoryId,
                 product.Category.Name))
             .ToListAsync(cancellationToken);
+
+        return new PagedResult<ProductResponse>(
+            items,
+            page,
+            pageSize,
+            totalCount);
     }
 
     public async Task<ProductResponse?> GetByIdAsync(

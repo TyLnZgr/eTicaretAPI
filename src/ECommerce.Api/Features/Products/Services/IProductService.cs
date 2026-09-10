@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 
@@ -5,7 +6,7 @@ namespace ECommerce.Api.Features.Products.Services;
 
 public interface IProductService
 {
-    Task<IReadOnlyList<ProductResponse>> GetAllAsync(
+    Task<PagedResult<ProductResponse>> GetAllAsync(
         ProductQueryParameters queryParameters,
         CancellationToken cancellationToken = default);
 
@@ -17,7 +18,7 @@ public interface IProductService
         string name,
         decimal price,
         int stockQuantity,
-         int categoryId,
+        int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default);
 
@@ -26,7 +27,7 @@ public interface IProductService
         string name,
         decimal price,
         int stockQuantity,
-         int categoryId,
+        int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default);
 
