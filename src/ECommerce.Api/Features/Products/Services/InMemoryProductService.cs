@@ -260,6 +260,51 @@ public class InMemoryProductService : IProductService
                 product));
     }
 
+    public Task<ProductStockAdjustmentStatus> AdjustStockAsync(
+        int id,
+        int quantityDelta,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (quantityDelta == 0)
+        {
+            return Task.FromResult(
+                ProductStockAdjustmentStatus.InvalidQuantityDelta);
+        }
+
+        lock (_products)
+        {
+            var product = FindById(id);
+
+            if (product is null)
+            {
+                return Task.FromResult(
+                    ProductStockAdjustmentStatus.ProductNotFound);
+            }
+
+            var requestedStock =
+                (long)product.StockQuantity + quantityDelta;
+
+            if (requestedStock < 0)
+            {
+                return Task.FromResult(
+                    ProductStockAdjustmentStatus.InsufficientStock);
+            }
+
+            if (requestedStock > int.MaxValue)
+            {
+                return Task.FromResult(
+                    ProductStockAdjustmentStatus.StockLimitExceeded);
+            }
+
+            product.StockQuantity = (int)requestedStock;
+
+            return Task.FromResult(
+                ProductStockAdjustmentStatus.Success);
+        }
+    }
+
     public Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken = default)

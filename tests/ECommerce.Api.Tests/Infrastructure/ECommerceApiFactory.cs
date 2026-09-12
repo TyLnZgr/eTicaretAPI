@@ -11,9 +11,16 @@ namespace ECommerce.Api.Tests.Infrastructure;
 
 public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
 {
+    private readonly string _environment;
+
+    public ECommerceApiFactory(string environment = "Testing")
+    {
+        _environment = environment;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(_environment);
 
         builder.ConfigureServices(services =>
         {

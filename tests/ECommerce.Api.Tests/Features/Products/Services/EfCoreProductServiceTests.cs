@@ -1,5 +1,6 @@
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Products.Dtos;
+using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Infrastructure;
@@ -199,5 +200,128 @@ public sealed class EfCoreProductServiceTests
         Assert.Equal(1, result.TotalPages);
         Assert.False(result.HasPreviousPage);
         Assert.False(result.HasNextPage);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenDecreaseIsValid_UpdatesStock()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var product = new Product
+        {
+            Name = "Stocked Product",
+            Price = 100m,
+            StockQuantity = 5,
+            IsActive = true,
+            Category = new Category
+            {
+                Name = "Test Category",
+                IsActive = true
+            }
+        };
+
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
+        var service =
+            new EfCoreProductService(database.DbContext);
+
+        // Act
+        var status = await service.AdjustStockAsync(
+            product.Id,
+            quantityDelta: -3);
+
+        // Assert
+        Assert.Equal(
+            ProductStockAdjustmentStatus.Success,
+            status);
+
+        await database.DbContext.Entry(product).ReloadAsync();
+
+        Assert.Equal(2, product.StockQuantity);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenDecreaseExceedsStock_DoesNotChangeStock()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var product = new Product
+        {
+            Name = "Low Stock Product",
+            Price = 100m,
+            StockQuantity = 2,
+            IsActive = true,
+            Category = new Category
+            {
+                Name = "Test Category",
+                IsActive = true
+            }
+        };
+
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
+        var service =
+            new EfCoreProductService(database.DbContext);
+
+        // Act
+        var status = await service.AdjustStockAsync(
+            product.Id,
+            quantityDelta: -3);
+
+        // Assert
+        Assert.Equal(
+            ProductStockAdjustmentStatus.InsufficientStock,
+            status);
+
+        await database.DbContext.Entry(product).ReloadAsync();
+
+        Assert.Equal(2, product.StockQuantity);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenIncreaseExceedsIntMax_DoesNotChangeStock()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var product = new Product
+        {
+            Name = "Maximum Stock Product",
+            Price = 100m,
+            StockQuantity = int.MaxValue,
+            IsActive = true,
+            Category = new Category
+            {
+                Name = "Test Category",
+                IsActive = true
+            }
+        };
+
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
+        var service =
+            new EfCoreProductService(database.DbContext);
+
+        // Act
+        var status = await service.AdjustStockAsync(
+            product.Id,
+            quantityDelta: 1);
+
+        // Assert
+        Assert.Equal(
+            ProductStockAdjustmentStatus.StockLimitExceeded,
+            status);
+
+        await database.DbContext.Entry(product).ReloadAsync();
+
+        Assert.Equal(int.MaxValue, product.StockQuantity);
     }
 }

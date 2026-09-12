@@ -31,6 +31,11 @@ public interface IProductService
         bool isActive,
         CancellationToken cancellationToken = default);
 
+    Task<ProductStockAdjustmentStatus> AdjustStockAsync(
+        int id,
+        int quantityDelta,
+        CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken = default);

@@ -3,42 +3,103 @@ using System.Net.Http.Json;
 using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Models;
+using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
 
 namespace ECommerce.Api.Tests.Features.Products.Endpoints;
 
 public sealed class ProductEndpointTests
 {
+    public static TheoryData<
+        string,
+        decimal,
+        int,
+        int,
+        string,
+        string> InvalidProductRequests => new()
+        {
+            {
+                string.Empty,
+                100m,
+                1,
+                1,
+                "name",
+                "Product name is required."
+            },
+            {
+                new string('P', 201),
+                100m,
+                1,
+                1,
+                "name",
+                "Product name cannot exceed 200 characters."
+            },
+            {
+                "Valid Product",
+                0m,
+                1,
+                1,
+                "price",
+                "Product price must be greater than zero."
+            },
+            {
+                "Valid Product",
+                100m,
+                -1,
+                1,
+                "stockQuantity",
+                "Product stock quantity cannot be negative."
+            },
+            {
+                "Valid Product",
+                100m,
+                1,
+                0,
+                "categoryId",
+                "A valid category ID is required."
+            }
+        };
+
     [Theory]
     [InlineData(
         "/api/products?page=0",
+        "page",
         "Page must be greater than zero.")]
     [InlineData(
         "/api/products?pageSize=0",
+        "pageSize",
         "Page size must be between 1 and 100.")]
     [InlineData(
         "/api/products?pageSize=101",
+        "pageSize",
         "Page size must be between 1 and 100.")]
     [InlineData(
         "/api/products?categoryId=0",
+        "categoryId",
         "Category ID must be greater than zero.")]
     [InlineData(
         "/api/products?minPrice=-1",
+        "minPrice",
         "Minimum price cannot be negative.")]
     [InlineData(
         "/api/products?maxPrice=-1",
+        "maxPrice",
         "Maximum price cannot be negative.")]
     [InlineData(
         "/api/products?minPrice=200&maxPrice=100",
+        "priceRange",
         "Minimum price cannot be greater than maximum price.")]
     [InlineData(
         "/api/products?sortBy=unknown",
+        "sortBy",
         "Sort field must be id, name, price, or stockQuantity.")]
     [InlineData(
         "/api/products?sortDirection=sideways",
+        "sortDirection",
         "Sort direction must be asc or desc.")]
     public async Task GetAllAsync_WhenQueryIsInvalid_ReturnsBadRequest(
         string requestUri,
+        string expectedField,
         string expectedMessage)
     {
         // Arrange
@@ -50,17 +111,10 @@ public sealed class ProductEndpointTests
             await client.GetAsync(requestUri);
 
         // Assert
-        Assert.Equal(
-            HttpStatusCode.BadRequest,
-            response.StatusCode);
-
-        var error = await response.Content
-            .ReadFromJsonAsync<ErrorResponse>();
-
-        Assert.NotNull(error);
-        Assert.Equal(
-            expectedMessage,
-            error.Message);
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            expectedField,
+            expectedMessage);
     }
 
     [Fact]
@@ -164,17 +218,11 @@ public sealed class ProductEndpointTests
             await client.GetAsync("/api/products/999");
 
         // Assert
-        Assert.Equal(
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
             HttpStatusCode.NotFound,
-            response.StatusCode);
-
-        var error = await response.Content
-            .ReadFromJsonAsync<ErrorResponse>();
-
-        Assert.NotNull(error);
-        Assert.Equal(
-            "Product with ID 999 was not found.",
-            error.Message);
+            "Not Found",
+            "Product with ID 999 was not found.");
     }
 
     [Fact]
@@ -270,17 +318,45 @@ public sealed class ProductEndpointTests
             await client.PostAsJsonAsync("/api/products", request);
 
         // Assert
-        Assert.Equal(
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
             HttpStatusCode.NotFound,
-            response.StatusCode);
+            "Not Found",
+            "Category with ID 999 was not found.");
+    }
 
-        var error = await response.Content
-            .ReadFromJsonAsync<ErrorResponse>();
+    [Theory]
+    [MemberData(nameof(InvalidProductRequests))]
+    public async Task CreateAsync_WhenRequestIsInvalid_ReturnsValidationProblem(
+        string name,
+        decimal price,
+        int stockQuantity,
+        int categoryId,
+        string expectedField,
+        string expectedMessage)
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
 
-        Assert.NotNull(error);
-        Assert.Equal(
-            "Category with ID 999 was not found.",
-            error.Message);
+        var request = new CreateProductRequest
+        {
+            Name = name,
+            Price = price,
+            StockQuantity = stockQuantity,
+            CategoryId = categoryId,
+            IsActive = true
+        };
+
+        // Act
+        using var response =
+            await client.PostAsJsonAsync("/api/products", request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            expectedField,
+            expectedMessage);
     }
 
     [Fact]
@@ -358,6 +434,170 @@ public sealed class ProductEndpointTests
     }
 
     [Fact]
+    public async Task AdjustStockAsync_WhenDecreaseIsValid_ReturnsNoContent()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var product = new Product
+            {
+                Name = "Stocked Product",
+                Price = 100m,
+                StockQuantity = 10,
+                IsActive = true,
+                Category = new Category
+                {
+                    Name = "Test Category",
+                    IsActive = true
+                }
+            };
+
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+        });
+
+        var request = new AdjustProductStockRequest
+        {
+            QuantityDelta = -3
+        };
+
+        // Act
+        using var response = await client.PatchAsJsonAsync(
+            $"/api/products/{productId}/stock",
+            request);
+
+        // Assert
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            response.StatusCode);
+
+        using var getResponse =
+            await client.GetAsync($"/api/products/{productId}");
+
+        var product = await getResponse.Content
+            .ReadFromJsonAsync<ProductResponse>();
+
+        Assert.NotNull(product);
+        Assert.Equal(7, product.StockQuantity);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenDeltaIsZero_ReturnsValidationProblem()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        var request = new AdjustProductStockRequest
+        {
+            QuantityDelta = 0
+        };
+
+        // Act
+        using var response = await client.PatchAsJsonAsync(
+            "/api/products/1/stock",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "quantityDelta",
+            "Quantity delta must be different from zero.");
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenProductDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        await factory.SeedDatabaseAsync(
+            _ => Task.CompletedTask);
+
+        var request = new AdjustProductStockRequest
+        {
+            QuantityDelta = -1
+        };
+
+        // Act
+        using var response = await client.PatchAsJsonAsync(
+            "/api/products/999/stock",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not Found",
+            "Product with ID 999 was not found.");
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenStockIsInsufficient_ReturnsConflict()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var product = new Product
+            {
+                Name = "Low Stock Product",
+                Price = 100m,
+                StockQuantity = 2,
+                IsActive = true,
+                Category = new Category
+                {
+                    Name = "Test Category",
+                    IsActive = true
+                }
+            };
+
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+        });
+
+        var request = new AdjustProductStockRequest
+        {
+            QuantityDelta = -3
+        };
+
+        // Act
+        using var response = await client.PatchAsJsonAsync(
+            $"/api/products/{productId}/stock",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Conflict,
+            "Conflict",
+            "The stock adjustment would result in a negative quantity.");
+
+        using var getResponse =
+            await client.GetAsync($"/api/products/{productId}");
+
+        var product = await getResponse.Content
+            .ReadFromJsonAsync<ProductResponse>();
+
+        Assert.NotNull(product);
+        Assert.Equal(2, product.StockQuantity);
+    }
+
+    [Fact]
     public async Task DeleteAsync_WhenProductExists_ReturnsNoContentAndRemovesProduct()
     {
         // Arrange
@@ -403,6 +643,4 @@ public sealed class ProductEndpointTests
             HttpStatusCode.NotFound,
             getResponse.StatusCode);
     }
-
-    private sealed record ErrorResponse(string Message);
 }

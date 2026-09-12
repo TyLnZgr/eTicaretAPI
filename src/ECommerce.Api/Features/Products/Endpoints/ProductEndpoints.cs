@@ -1,3 +1,5 @@
+using ECommerce.Api.Common.Http;
+using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
@@ -14,19 +16,51 @@ public static class ProductEndpoints
             .WithTags("Products");
 
         group.MapGet(string.Empty, GetAllAsync)
-            .WithName("GetProducts");
+            .WithName("GetProducts")
+            .WithSummary("List products")
+            .WithDescription(
+                "Returns a filtered, sorted, and paginated product list.")
+            .Produces<PagedResult<ProductResponse>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem();
 
         group.MapGet("/{id:int}", GetByIdAsync)
-            .WithName("GetProductById");
+            .WithName("GetProductById")
+            .WithSummary("Get a product by ID")
+            .Produces<ProductResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost(string.Empty, CreateAsync)
-            .WithName("CreateProduct");
+            .WithName("CreateProduct")
+            .WithSummary("Create a product")
+            .Produces<ProductResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         group.MapPut("/{id:int}", UpdateAsync)
-            .WithName("UpdateProduct");
+            .WithName("UpdateProduct")
+            .WithSummary("Update a product")
+            .Produces<ProductResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        group.MapPatch("/{id:int}/stock", AdjustStockAsync)
+            .WithName("AdjustProductStock")
+            .WithSummary("Adjust product stock")
+            .WithDescription(
+                "Adds or removes stock using a positive or negative quantity delta.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         group.MapDelete("/{id:int}", DeleteAsync)
-            .WithName("DeleteProduct");
+            .WithName("DeleteProduct")
+            .WithSummary("Delete a product")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         return endpoints;
     }
@@ -39,38 +73,34 @@ public static class ProductEndpoints
         if (queryParameters.CategoryId.HasValue &&
             queryParameters.CategoryId.Value <= 0)
         {
-            return Results.BadRequest(new
-            {
-                message = "Category ID must be greater than zero."
-            });
+            return ApiProblemResults.Validation(
+                "categoryId",
+                "Category ID must be greater than zero.");
         }
 
         if (queryParameters.MinPrice.HasValue &&
             queryParameters.MinPrice.Value < 0)
         {
-            return Results.BadRequest(new
-            {
-                message = "Minimum price cannot be negative."
-            });
+            return ApiProblemResults.Validation(
+                "minPrice",
+                "Minimum price cannot be negative.");
         }
 
         if (queryParameters.MaxPrice.HasValue &&
             queryParameters.MaxPrice.Value < 0)
         {
-            return Results.BadRequest(new
-            {
-                message = "Maximum price cannot be negative."
-            });
+            return ApiProblemResults.Validation(
+                "maxPrice",
+                "Maximum price cannot be negative.");
         }
 
         if (queryParameters.MinPrice.HasValue &&
             queryParameters.MaxPrice.HasValue &&
             queryParameters.MinPrice.Value > queryParameters.MaxPrice.Value)
         {
-            return Results.BadRequest(new
-            {
-                message = "Minimum price cannot be greater than maximum price."
-            });
+            return ApiProblemResults.Validation(
+                "priceRange",
+                "Minimum price cannot be greater than maximum price.");
         }
 
         var sortBy = string.IsNullOrWhiteSpace(queryParameters.SortBy)
@@ -87,19 +117,17 @@ public static class ProductEndpoints
             sortBy != "price" &&
             sortBy != "stockquantity")
         {
-            return Results.BadRequest(new
-            {
-                message = "Sort field must be id, name, price, or stockQuantity."
-            });
+            return ApiProblemResults.Validation(
+                "sortBy",
+                "Sort field must be id, name, price, or stockQuantity.");
         }
 
         if (sortDirection != "asc" &&
             sortDirection != "desc")
         {
-            return Results.BadRequest(new
-            {
-                message = "Sort direction must be asc or desc."
-            });
+            return ApiProblemResults.Validation(
+                "sortDirection",
+                "Sort direction must be asc or desc.");
         }
 
         var page = queryParameters.Page ?? 1;
@@ -107,28 +135,25 @@ public static class ProductEndpoints
 
         if (page < 1)
         {
-            return Results.BadRequest(new
-            {
-                message = "Page must be greater than zero."
-            });
+            return ApiProblemResults.Validation(
+                "page",
+                "Page must be greater than zero.");
         }
 
         if (pageSize < 1 || pageSize > 100)
         {
-            return Results.BadRequest(new
-            {
-                message = "Page size must be between 1 and 100."
-            });
+            return ApiProblemResults.Validation(
+                "pageSize",
+                "Page size must be between 1 and 100.");
         }
 
         var offset = ((long)page - 1) * pageSize;
 
         if (offset > int.MaxValue)
         {
-            return Results.BadRequest(new
-            {
-                message = "Requested page is too large."
-            });
+            return ApiProblemResults.Validation(
+                "page",
+                "Requested page is too large.");
         }
 
         var result = await productService.GetAllAsync(
@@ -147,10 +172,8 @@ public static class ProductEndpoints
 
         if (product is null)
         {
-            return Results.NotFound(new
-            {
-                message = $"Product with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Product with ID {id} was not found.");
         }
 
         return Results.Ok(product);
@@ -161,44 +184,15 @@ public static class ProductEndpoints
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product name is required."
-            });
-        }
+        var validationResult = ValidateProductRequest(
+            request.Name,
+            request.Price,
+            request.StockQuantity,
+            request.CategoryId);
 
-        if (request.Name.Trim().Length > 200)
+        if (validationResult is not null)
         {
-            return Results.BadRequest(new
-            {
-                message = "Product name cannot exceed 200 characters."
-            });
-        }
-
-        if (request.Price <= 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product price must be greater than zero."
-            });
-        }
-
-        if (request.StockQuantity < 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product stock quantity cannot be negative."
-            });
-        }
-
-        if (request.CategoryId <= 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "A valid category ID is required."
-            });
+            return validationResult;
         }
 
         var result = await productService.CreateAsync(
@@ -211,16 +205,13 @@ public static class ProductEndpoints
 
         if (result.Status == ProductMutationStatus.CategoryNotFound)
         {
-            return Results.NotFound(new
-            {
-                message = $"Category with ID {request.CategoryId} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Category with ID {request.CategoryId} was not found.");
         }
 
         if (result.Product is null)
         {
-            return Results.Problem(
-                "Product creation completed without a product.");
+            return ApiProblemResults.InternalServerError();
         }
 
         return Results.Created(
@@ -234,44 +225,15 @@ public static class ProductEndpoints
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product name is required."
-            });
-        }
+        var validationResult = ValidateProductRequest(
+            request.Name,
+            request.Price,
+            request.StockQuantity,
+            request.CategoryId);
 
-        if (request.Name.Trim().Length > 200)
+        if (validationResult is not null)
         {
-            return Results.BadRequest(new
-            {
-                message = "Product name cannot exceed 200 characters."
-            });
-        }
-
-        if (request.Price <= 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product price must be greater than zero."
-            });
-        }
-
-        if (request.StockQuantity < 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "Product stock quantity cannot be negative."
-            });
-        }
-
-        if (request.CategoryId <= 0)
-        {
-            return Results.BadRequest(new
-            {
-                message = "A valid category ID is required."
-            });
+            return validationResult;
         }
 
         var result = await productService.UpdateAsync(
@@ -285,27 +247,66 @@ public static class ProductEndpoints
 
         if (result.Status == ProductMutationStatus.ProductNotFound)
         {
-            return Results.NotFound(new
-            {
-                message = $"Product with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Product with ID {id} was not found.");
         }
 
         if (result.Status == ProductMutationStatus.CategoryNotFound)
         {
-            return Results.NotFound(new
-            {
-                message = $"Category with ID {request.CategoryId} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Category with ID {request.CategoryId} was not found.");
         }
 
         if (result.Product is null)
         {
-            return Results.Problem(
-                "Product update completed without a product.");
+            return ApiProblemResults.InternalServerError();
         }
 
         return Results.Ok(ToResponse(result.Product));
+    }
+
+    private static async Task<IResult> AdjustStockAsync(
+        int id,
+        AdjustProductStockRequest request,
+        IProductService productService,
+        CancellationToken cancellationToken)
+    {
+        if (request.QuantityDelta == 0)
+        {
+            return ApiProblemResults.Validation(
+                "quantityDelta",
+                "Quantity delta must be different from zero.");
+        }
+
+        var status = await productService.AdjustStockAsync(
+            id,
+            request.QuantityDelta,
+            cancellationToken);
+
+        return status switch
+        {
+            ProductStockAdjustmentStatus.Success =>
+                Results.NoContent(),
+
+            ProductStockAdjustmentStatus.ProductNotFound =>
+                ApiProblemResults.NotFound(
+                    $"Product with ID {id} was not found."),
+
+            ProductStockAdjustmentStatus.InvalidQuantityDelta =>
+                ApiProblemResults.Validation(
+                    "quantityDelta",
+                    "Quantity delta must be different from zero."),
+
+            ProductStockAdjustmentStatus.InsufficientStock =>
+                ApiProblemResults.Conflict(
+                    "The stock adjustment would result in a negative quantity."),
+
+            ProductStockAdjustmentStatus.StockLimitExceeded =>
+                ApiProblemResults.Conflict(
+                    "The stock adjustment exceeds the supported stock limit."),
+
+            _ => ApiProblemResults.InternalServerError()
+        };
     }
 
     private static async Task<IResult> DeleteAsync(
@@ -319,13 +320,55 @@ public static class ProductEndpoints
 
         if (!wasDeleted)
         {
-            return Results.NotFound(new
-            {
-                message = $"Product with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Product with ID {id} was not found.");
         }
 
         return Results.NoContent();
+    }
+
+    private static IResult? ValidateProductRequest(
+        string name,
+        decimal price,
+        int stockQuantity,
+        int categoryId)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return ApiProblemResults.Validation(
+                "name",
+                "Product name is required.");
+        }
+
+        if (name.Trim().Length > 200)
+        {
+            return ApiProblemResults.Validation(
+                "name",
+                "Product name cannot exceed 200 characters.");
+        }
+
+        if (price <= 0)
+        {
+            return ApiProblemResults.Validation(
+                "price",
+                "Product price must be greater than zero.");
+        }
+
+        if (stockQuantity < 0)
+        {
+            return ApiProblemResults.Validation(
+                "stockQuantity",
+                "Product stock quantity cannot be negative.");
+        }
+
+        if (categoryId <= 0)
+        {
+            return ApiProblemResults.Validation(
+                "categoryId",
+                "A valid category ID is required.");
+        }
+
+        return null;
     }
 
     private static ProductResponse ToResponse(Product product)

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using ECommerce.Api.Features.Categories.Dtos;
 using ECommerce.Api.Models;
+using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
 
 namespace ECommerce.Api.Tests.Features.Categories.Endpoints;
@@ -132,15 +133,10 @@ public sealed class CategoryEndpointTests
             await client.PostAsJsonAsync("/api/categories", request);
 
         // Assert
-        Assert.Equal(
-            HttpStatusCode.BadRequest,
-            response.StatusCode);
-
-        var error = await response.Content
-            .ReadFromJsonAsync<ErrorResponse>();
-
-        Assert.NotNull(error);
-        Assert.Equal(expectedMessage, error.Message);
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "name",
+            expectedMessage);
     }
 
     [Fact]
@@ -233,9 +229,11 @@ public sealed class CategoryEndpointTests
         using var getResponse =
             await client.GetAsync($"/api/categories/{categoryId}");
 
-        Assert.Equal(
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            getResponse,
             HttpStatusCode.NotFound,
-            getResponse.StatusCode);
+            "Not Found",
+            $"Category with ID {categoryId} was not found.");
     }
 
     [Fact]
@@ -274,23 +272,15 @@ public sealed class CategoryEndpointTests
             await client.DeleteAsync($"/api/categories/{categoryId}");
 
         // Assert
-        Assert.Equal(
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
             HttpStatusCode.Conflict,
-            response.StatusCode);
-
-        var error = await response.Content
-            .ReadFromJsonAsync<ErrorResponse>();
-
-        Assert.NotNull(error);
-        Assert.Equal(
-            $"Category with ID {categoryId} cannot be deleted because it has products.",
-            error.Message);
+            "Conflict",
+            $"Category with ID {categoryId} cannot be deleted because it has products.");
 
         using var getResponse =
             await client.GetAsync($"/api/categories/{categoryId}");
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
     }
-
-    private sealed record ErrorResponse(string Message);
 }

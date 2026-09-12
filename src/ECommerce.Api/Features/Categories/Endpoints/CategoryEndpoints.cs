@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Http;
 using ECommerce.Api.Features.Categories.Dtos;
 using ECommerce.Api.Features.Categories.Outcomes;
 using ECommerce.Api.Features.Categories.Services;
@@ -14,19 +15,36 @@ public static class CategoryEndpoints
             .WithTags("Categories");
 
         group.MapGet(string.Empty, GetAllAsync)
-            .WithName("GetCategories");
+            .WithName("GetCategories")
+            .WithSummary("List categories")
+            .Produces<CategoryResponse[]>(StatusCodes.Status200OK);
 
         group.MapGet("/{id:int}", GetByIdAsync)
-            .WithName("GetCategoryById");
+            .WithName("GetCategoryById")
+            .WithSummary("Get a category by ID")
+            .Produces<CategoryResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapPost(string.Empty, CreateAsync)
-            .WithName("CreateCategory");
+            .WithName("CreateCategory")
+            .WithSummary("Create a category")
+            .Produces<CategoryResponse>(StatusCodes.Status201Created)
+            .ProducesValidationProblem();
 
         group.MapPut("/{id:int}", UpdateAsync)
-            .WithName("UpdateCategory");
+            .WithName("UpdateCategory")
+            .WithSummary("Update a category")
+            .Produces<CategoryResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{id:int}", DeleteAsync)
-            .WithName("DeleteCategory");
+            .WithName("DeleteCategory")
+            .WithSummary("Delete a category")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         return endpoints;
     }
@@ -54,10 +72,8 @@ public static class CategoryEndpoints
 
         if (category is null)
         {
-            return Results.NotFound(new
-            {
-                message = $"Category with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Category with ID {id} was not found.");
         }
 
         return Results.Ok(ToResponse(category));
@@ -106,10 +122,8 @@ public static class CategoryEndpoints
 
         if (category is null)
         {
-            return Results.NotFound(new
-            {
-                message = $"Category with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Category with ID {id} was not found.");
         }
 
         return Results.Ok(ToResponse(category));
@@ -126,18 +140,14 @@ public static class CategoryEndpoints
 
         if (status == CategoryDeleteStatus.NotFound)
         {
-            return Results.NotFound(new
-            {
-                message = $"Category with ID {id} was not found."
-            });
+            return ApiProblemResults.NotFound(
+                $"Category with ID {id} was not found.");
         }
 
         if (status == CategoryDeleteStatus.HasProducts)
         {
-            return Results.Conflict(new
-            {
-                message = $"Category with ID {id} cannot be deleted because it has products."
-            });
+            return ApiProblemResults.Conflict(
+                $"Category with ID {id} cannot be deleted because it has products.");
         }
 
         if (status == CategoryDeleteStatus.Success)
@@ -145,26 +155,23 @@ public static class CategoryEndpoints
             return Results.NoContent();
         }
 
-        return Results.Problem(
-            "Category deletion returned an unexpected result.");
+        return ApiProblemResults.InternalServerError();
     }
 
     private static IResult? ValidateName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return Results.BadRequest(new
-            {
-                message = "Category name is required."
-            });
+            return ApiProblemResults.Validation(
+                "name",
+                "Category name is required.");
         }
 
         if (name.Trim().Length > 100)
         {
-            return Results.BadRequest(new
-            {
-                message = "Category name cannot exceed 100 characters."
-            });
+            return ApiProblemResults.Validation(
+                "name",
+                "Category name cannot exceed 100 characters.");
         }
 
         return null;

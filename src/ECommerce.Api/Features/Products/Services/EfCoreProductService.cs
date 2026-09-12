@@ -223,6 +223,54 @@ public class EfCoreProductService : IProductService
             ProductMutationStatus.Success,
             product);
     }
+
+    public async Task<ProductStockAdjustmentStatus> AdjustStockAsync(
+        int id,
+        int quantityDelta,
+        CancellationToken cancellationToken = default)
+    {
+        if (quantityDelta == 0)
+        {
+            return ProductStockAdjustmentStatus.InvalidQuantityDelta;
+        }
+
+        var quantityDeltaAsLong = (long)quantityDelta;
+
+        var affectedRows = await _dbContext.Products
+            .Where(product => product.Id == id)
+            .Where(product =>
+                (long)product.StockQuantity + quantityDeltaAsLong >= 0 &&
+                (long)product.StockQuantity + quantityDeltaAsLong <= int.MaxValue)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(
+                    product => product.StockQuantity,
+                    product => product.StockQuantity + quantityDelta),
+                cancellationToken);
+
+        if (affectedRows == 1)
+        {
+            return ProductStockAdjustmentStatus.Success;
+        }
+
+        var currentStock = await _dbContext.Products
+            .AsNoTracking()
+            .Where(product => product.Id == id)
+            .Select(product => (int?)product.StockQuantity)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (!currentStock.HasValue)
+        {
+            return ProductStockAdjustmentStatus.ProductNotFound;
+        }
+
+        var requestedStock =
+            (long)currentStock.Value + quantityDeltaAsLong;
+
+        return requestedStock < 0
+            ? ProductStockAdjustmentStatus.InsufficientStock
+            : ProductStockAdjustmentStatus.StockLimitExceeded;
+    }
+
     public async Task<bool> DeleteAsync(
         int id,
         CancellationToken cancellationToken = default)
