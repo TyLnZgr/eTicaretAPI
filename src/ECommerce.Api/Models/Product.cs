@@ -10,4 +10,6 @@ public class Product
     public int CategoryId { get; set; }
 
     public Category Category { get; set; } = null!;
+    public ICollection<StockMovement> StockMovements { get; set; }
+        = new List<StockMovement>();
 }

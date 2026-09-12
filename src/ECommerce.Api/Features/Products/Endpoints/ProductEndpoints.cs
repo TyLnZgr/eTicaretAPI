@@ -29,6 +29,15 @@ public static class ProductEndpoints
             .Produces<ProductResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
+        group.MapGet("/{id:int}/stock-movements", GetStockMovementsAsync)
+            .WithName("GetProductStockMovements")
+            .WithSummary("List product stock movements")
+            .WithDescription(
+                "Returns the product's stock movement history, newest first.")
+            .Produces<IReadOnlyList<StockMovementResponse>>(
+                StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
         group.MapPost(string.Empty, CreateAsync)
             .WithName("CreateProduct")
             .WithSummary("Create a product")
@@ -49,7 +58,7 @@ public static class ProductEndpoints
             .WithName("AdjustProductStock")
             .WithSummary("Adjust product stock")
             .WithDescription(
-                "Adds or removes stock using a positive or negative quantity delta.")
+                "Adds or removes stock and records the reason as a movement.")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
@@ -179,20 +188,44 @@ public static class ProductEndpoints
         return Results.Ok(product);
     }
 
+    private static async Task<IResult> GetStockMovementsAsync(
+        int id,
+        IProductService productService,
+        CancellationToken cancellationToken)
+    {
+        var movements = await productService.GetStockMovementsAsync(
+            id,
+            cancellationToken);
+
+        if (movements is null)
+        {
+            return ApiProblemResults.NotFound(
+                $"Product with ID {id} was not found.");
+        }
+
+        return Results.Ok(movements);
+    }
+
     private static async Task<IResult> CreateAsync(
         CreateProductRequest request,
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        var validationResult = ValidateProductRequest(
+        var validationResult = ValidateProductDetailsRequest(
             request.Name,
             request.Price,
-            request.StockQuantity,
             request.CategoryId);
 
         if (validationResult is not null)
         {
             return validationResult;
+        }
+
+        if (request.StockQuantity < 0)
+        {
+            return ApiProblemResults.Validation(
+                "stockQuantity",
+                "Product stock quantity cannot be negative.");
         }
 
         var result = await productService.CreateAsync(
@@ -225,10 +258,9 @@ public static class ProductEndpoints
         IProductService productService,
         CancellationToken cancellationToken)
     {
-        var validationResult = ValidateProductRequest(
+        var validationResult = ValidateProductDetailsRequest(
             request.Name,
             request.Price,
-            request.StockQuantity,
             request.CategoryId);
 
         if (validationResult is not null)
@@ -240,7 +272,6 @@ public static class ProductEndpoints
             id,
             request.Name.Trim(),
             request.Price,
-            request.StockQuantity,
             request.CategoryId,
             request.IsActive,
             cancellationToken);
@@ -278,9 +309,24 @@ public static class ProductEndpoints
                 "Quantity delta must be different from zero.");
         }
 
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return ApiProblemResults.Validation(
+                "reason",
+                "Stock movement reason is required.");
+        }
+
+        if (request.Reason.Trim().Length > 200)
+        {
+            return ApiProblemResults.Validation(
+                "reason",
+                "Stock movement reason cannot exceed 200 characters.");
+        }
+
         var status = await productService.AdjustStockAsync(
             id,
             request.QuantityDelta,
+            request.Reason.Trim(),
             cancellationToken);
 
         return status switch
@@ -296,6 +342,11 @@ public static class ProductEndpoints
                 ApiProblemResults.Validation(
                     "quantityDelta",
                     "Quantity delta must be different from zero."),
+
+            ProductStockAdjustmentStatus.InvalidReason =>
+                ApiProblemResults.Validation(
+                    "reason",
+                    "Stock movement reason must be between 1 and 200 characters."),
 
             ProductStockAdjustmentStatus.InsufficientStock =>
                 ApiProblemResults.Conflict(
@@ -327,10 +378,9 @@ public static class ProductEndpoints
         return Results.NoContent();
     }
 
-    private static IResult? ValidateProductRequest(
+    private static IResult? ValidateProductDetailsRequest(
         string name,
         decimal price,
-        int stockQuantity,
         int categoryId)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -352,13 +402,6 @@ public static class ProductEndpoints
             return ApiProblemResults.Validation(
                 "price",
                 "Product price must be greater than zero.");
-        }
-
-        if (stockQuantity < 0)
-        {
-            return ApiProblemResults.Validation(
-                "stockQuantity",
-                "Product stock quantity cannot be negative.");
         }
 
         if (categoryId <= 0)

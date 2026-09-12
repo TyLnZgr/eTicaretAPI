@@ -8,6 +8,8 @@ namespace ECommerce.Api.Features.Products.Services;
 public class InMemoryProductService : IProductService
 {
     private readonly List<Product> _products;
+    private readonly List<StockMovement> _stockMovements = new();
+    private readonly TimeProvider _timeProvider;
     private readonly Dictionary<int, Category> _categories = new()
     {
         [1] = new Category
@@ -19,7 +21,13 @@ public class InMemoryProductService : IProductService
     };
 
     public InMemoryProductService()
+        : this(TimeProvider.System)
     {
+    }
+
+    public InMemoryProductService(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
         _products = new List<Product>
         {
             new Product
@@ -177,6 +185,28 @@ public class InMemoryProductService : IProductService
         return Task.FromResult(response);
     }
 
+    public Task<IReadOnlyList<StockMovementResponse>?> GetStockMovementsAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (FindById(id) is null)
+        {
+            return Task.FromResult<IReadOnlyList<StockMovementResponse>?>(null);
+        }
+
+        IReadOnlyList<StockMovementResponse> movements = _stockMovements
+            .Where(movement => movement.ProductId == id)
+            .OrderByDescending(movement => movement.CreatedAtUtc)
+            .ThenByDescending(movement => movement.Id)
+            .Select(ToStockMovementResponse)
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<StockMovementResponse>?>(
+            movements);
+    }
+
     public Task<ProductMutationResult> CreateAsync(
         string name,
         decimal price,
@@ -214,6 +244,20 @@ public class InMemoryProductService : IProductService
 
         _products.Add(product);
 
+        if (stockQuantity > 0)
+        {
+            _stockMovements.Add(new StockMovement
+            {
+                Id = NextStockMovementId(),
+                ProductId = product.Id,
+                Product = product,
+                QuantityDelta = stockQuantity,
+                StockQuantityAfter = stockQuantity,
+                Reason = "Initial stock",
+                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+            });
+        }
+
         return Task.FromResult(
             new ProductMutationResult(
                 ProductMutationStatus.Success,
@@ -224,7 +268,6 @@ public class InMemoryProductService : IProductService
         int id,
         string name,
         decimal price,
-        int stockQuantity,
         int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default)
@@ -249,7 +292,6 @@ public class InMemoryProductService : IProductService
 
         product.Name = name;
         product.Price = price;
-        product.StockQuantity = stockQuantity;
         product.CategoryId = categoryId;
         product.Category = category;
         product.IsActive = isActive;
@@ -263,6 +305,7 @@ public class InMemoryProductService : IProductService
     public Task<ProductStockAdjustmentStatus> AdjustStockAsync(
         int id,
         int quantityDelta,
+        string reason,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -272,6 +315,15 @@ public class InMemoryProductService : IProductService
             return Task.FromResult(
                 ProductStockAdjustmentStatus.InvalidQuantityDelta);
         }
+
+        if (string.IsNullOrWhiteSpace(reason) ||
+            reason.Trim().Length > 200)
+        {
+            return Task.FromResult(
+                ProductStockAdjustmentStatus.InvalidReason);
+        }
+
+        reason = reason.Trim();
 
         lock (_products)
         {
@@ -300,6 +352,17 @@ public class InMemoryProductService : IProductService
 
             product.StockQuantity = (int)requestedStock;
 
+            _stockMovements.Add(new StockMovement
+            {
+                Id = NextStockMovementId(),
+                ProductId = product.Id,
+                Product = product,
+                QuantityDelta = quantityDelta,
+                StockQuantityAfter = product.StockQuantity,
+                Reason = reason,
+                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+            });
+
             return Task.FromResult(
                 ProductStockAdjustmentStatus.Success);
         }
@@ -320,12 +383,25 @@ public class InMemoryProductService : IProductService
 
         var wasDeleted = _products.Remove(product);
 
+        if (wasDeleted)
+        {
+            _stockMovements.RemoveAll(
+                movement => movement.ProductId == id);
+        }
+
         return Task.FromResult(wasDeleted);
     }
 
     private Product? FindById(int id)
     {
         return _products.FirstOrDefault(candidate => candidate.Id == id);
+    }
+
+    private int NextStockMovementId()
+    {
+        return _stockMovements.Count == 0
+            ? 1
+            : _stockMovements.Max(movement => movement.Id) + 1;
     }
 
     private static ProductResponse ToResponse(Product product)
@@ -338,5 +414,17 @@ public class InMemoryProductService : IProductService
             product.IsActive,
             product.CategoryId,
             product.Category.Name);
+    }
+
+    private static StockMovementResponse ToStockMovementResponse(
+        StockMovement movement)
+    {
+        return new StockMovementResponse(
+            movement.Id,
+            movement.ProductId,
+            movement.QuantityDelta,
+            movement.StockQuantityAfter,
+            movement.Reason,
+            movement.CreatedAtUtc);
     }
 }

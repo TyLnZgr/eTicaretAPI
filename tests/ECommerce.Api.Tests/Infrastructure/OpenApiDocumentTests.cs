@@ -86,6 +86,16 @@ public sealed class OpenApiDocumentTests
         Assert.True(
             adjustStockResponses.TryGetProperty("409", out _));
 
+        var stockMovementResponses = paths
+            .GetProperty("/api/products/{id}/stock-movements")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(
+            stockMovementResponses.TryGetProperty("200", out _));
+        Assert.True(
+            stockMovementResponses.TryGetProperty("404", out _));
+
         var deleteCategoryResponses = paths
             .GetProperty("/api/categories/{id}")
             .GetProperty("delete")

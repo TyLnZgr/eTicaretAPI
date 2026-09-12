@@ -10,10 +10,14 @@ namespace ECommerce.Api.Features.Products.Services;
 public class EfCoreProductService : IProductService
 {
     private readonly ECommerceDbContext _dbContext;
+    private readonly TimeProvider _timeProvider;
 
-    public EfCoreProductService(ECommerceDbContext dbContext)
+    public EfCoreProductService(
+        ECommerceDbContext dbContext,
+        TimeProvider timeProvider)
     {
         _dbContext = dbContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<PagedResult<ProductResponse>> GetAllAsync(
@@ -142,6 +146,36 @@ public class EfCoreProductService : IProductService
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<StockMovementResponse>?> GetStockMovementsAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var productExists = await _dbContext.Products
+            .AsNoTracking()
+            .AnyAsync(
+                product => product.Id == id,
+                cancellationToken);
+
+        if (!productExists)
+        {
+            return null;
+        }
+
+        return await _dbContext.StockMovements
+            .AsNoTracking()
+            .Where(movement => movement.ProductId == id)
+            .OrderByDescending(movement => movement.CreatedAtUtc)
+            .ThenByDescending(movement => movement.Id)
+            .Select(movement => new StockMovementResponse(
+                movement.Id,
+                movement.ProductId,
+                movement.QuantityDelta,
+                movement.StockQuantityAfter,
+                movement.Reason,
+                movement.CreatedAtUtc))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ProductMutationResult> CreateAsync(
         string name,
         decimal price,
@@ -171,6 +205,17 @@ public class EfCoreProductService : IProductService
             IsActive = isActive
         };
 
+        if (stockQuantity > 0)
+        {
+            product.StockMovements.Add(new StockMovement
+            {
+                QuantityDelta = stockQuantity,
+                StockQuantityAfter = stockQuantity,
+                Reason = "Initial stock",
+                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+            });
+        }
+
         _dbContext.Products.Add(product);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -183,7 +228,6 @@ public class EfCoreProductService : IProductService
         int id,
         string name,
         decimal price,
-        int stockQuantity,
         int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default)
@@ -212,7 +256,6 @@ public class EfCoreProductService : IProductService
 
         product.Name = name;
         product.Price = price;
-        product.StockQuantity = stockQuantity;
         product.CategoryId = categoryId;
         product.Category = category;
         product.IsActive = isActive;
@@ -227,6 +270,7 @@ public class EfCoreProductService : IProductService
     public async Task<ProductStockAdjustmentStatus> AdjustStockAsync(
         int id,
         int quantityDelta,
+        string reason,
         CancellationToken cancellationToken = default)
     {
         if (quantityDelta == 0)
@@ -234,7 +278,19 @@ public class EfCoreProductService : IProductService
             return ProductStockAdjustmentStatus.InvalidQuantityDelta;
         }
 
+        if (string.IsNullOrWhiteSpace(reason) ||
+            reason.Trim().Length > 200)
+        {
+            return ProductStockAdjustmentStatus.InvalidReason;
+        }
+
+        reason = reason.Trim();
+
         var quantityDeltaAsLong = (long)quantityDelta;
+
+        await using var transaction =
+            await _dbContext.Database.BeginTransactionAsync(
+                cancellationToken);
 
         var affectedRows = await _dbContext.Products
             .Where(product => product.Id == id)
@@ -249,6 +305,24 @@ public class EfCoreProductService : IProductService
 
         if (affectedRows == 1)
         {
+            var stockQuantityAfter = await _dbContext.Products
+                .AsNoTracking()
+                .Where(product => product.Id == id)
+                .Select(product => product.StockQuantity)
+                .SingleAsync(cancellationToken);
+
+            _dbContext.StockMovements.Add(new StockMovement
+            {
+                ProductId = id,
+                QuantityDelta = quantityDelta,
+                StockQuantityAfter = stockQuantityAfter,
+                Reason = reason,
+                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
+            });
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
             return ProductStockAdjustmentStatus.Success;
         }
 
@@ -260,11 +334,15 @@ public class EfCoreProductService : IProductService
 
         if (!currentStock.HasValue)
         {
+            await transaction.RollbackAsync(cancellationToken);
+
             return ProductStockAdjustmentStatus.ProductNotFound;
         }
 
         var requestedStock =
             (long)currentStock.Value + quantityDeltaAsLong;
+
+        await transaction.RollbackAsync(cancellationToken);
 
         return requestedStock < 0
             ? ProductStockAdjustmentStatus.InsufficientStock

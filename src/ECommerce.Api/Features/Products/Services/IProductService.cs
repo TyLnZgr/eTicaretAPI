@@ -14,6 +14,10 @@ public interface IProductService
         int id,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<StockMovementResponse>?> GetStockMovementsAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
     Task<ProductMutationResult> CreateAsync(
         string name,
         decimal price,
@@ -26,7 +30,6 @@ public interface IProductService
         int id,
         string name,
         decimal price,
-        int stockQuantity,
         int categoryId,
         bool isActive,
         CancellationToken cancellationToken = default);
@@ -34,6 +37,7 @@ public interface IProductService
     Task<ProductStockAdjustmentStatus> AdjustStockAsync(
         int id,
         int quantityDelta,
+        string reason,
         CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(

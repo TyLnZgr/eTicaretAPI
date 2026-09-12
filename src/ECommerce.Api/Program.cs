@@ -17,6 +17,7 @@ builder.Services.AddDbContext<ECommerceDbContext>(options =>
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();

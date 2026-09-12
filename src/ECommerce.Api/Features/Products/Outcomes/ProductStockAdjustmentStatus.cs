@@ -5,6 +5,7 @@ public enum ProductStockAdjustmentStatus
     Success,
     ProductNotFound,
     InvalidQuantityDelta,
+    InvalidReason,
     InsufficientStock,
     StockLimitExceeded
 }

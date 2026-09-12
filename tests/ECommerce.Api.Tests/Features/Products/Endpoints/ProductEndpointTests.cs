@@ -292,6 +292,21 @@ public sealed class ProductEndpointTests
         Assert.NotNull(savedProduct);
         Assert.Equal(product.Id, savedProduct.Id);
         Assert.Equal(product.Name, savedProduct.Name);
+
+        using var movementsResponse = await client.GetAsync(
+            $"/api/products/{product.Id}/stock-movements");
+
+        Assert.Equal(HttpStatusCode.OK, movementsResponse.StatusCode);
+
+        var movements = await movementsResponse.Content
+            .ReadFromJsonAsync<List<StockMovementResponse>>();
+
+        var openingMovement = Assert.Single(Assert.IsType<
+            List<StockMovementResponse>>(movements));
+
+        Assert.Equal(12, openingMovement.QuantityDelta);
+        Assert.Equal(12, openingMovement.StockQuantityAfter);
+        Assert.Equal("Initial stock", openingMovement.Reason);
     }
 
     [Fact]
@@ -397,7 +412,6 @@ public sealed class ProductEndpointTests
         {
             Name = "Updated Keyboard",
             Price = 2750m,
-            StockQuantity = 20,
             CategoryId = categoryId,
             IsActive = true
         };
@@ -417,7 +431,7 @@ public sealed class ProductEndpointTests
         Assert.Equal(productId, product.Id);
         Assert.Equal("Updated Keyboard", product.Name);
         Assert.Equal(2750m, product.Price);
-        Assert.Equal(20, product.StockQuantity);
+        Assert.Equal(4, product.StockQuantity);
         Assert.Equal(categoryId, product.CategoryId);
         Assert.Equal("Computer Accessories", product.CategoryName);
         Assert.True(product.IsActive);
@@ -465,7 +479,8 @@ public sealed class ProductEndpointTests
 
         var request = new AdjustProductStockRequest
         {
-            QuantityDelta = -3
+            QuantityDelta = -3,
+            Reason = "Customer order"
         };
 
         // Act
@@ -486,6 +501,19 @@ public sealed class ProductEndpointTests
 
         Assert.NotNull(product);
         Assert.Equal(7, product.StockQuantity);
+
+        using var movementsResponse = await client.GetAsync(
+            $"/api/products/{productId}/stock-movements");
+
+        var movements = await movementsResponse.Content
+            .ReadFromJsonAsync<List<StockMovementResponse>>();
+
+        var movement = Assert.Single(Assert.IsType<
+            List<StockMovementResponse>>(movements));
+
+        Assert.Equal(-3, movement.QuantityDelta);
+        Assert.Equal(7, movement.StockQuantityAfter);
+        Assert.Equal("Customer order", movement.Reason);
     }
 
     [Fact]
@@ -497,7 +525,8 @@ public sealed class ProductEndpointTests
 
         var request = new AdjustProductStockRequest
         {
-            QuantityDelta = 0
+            QuantityDelta = 0,
+            Reason = "Inventory correction"
         };
 
         // Act
@@ -513,6 +542,31 @@ public sealed class ProductEndpointTests
     }
 
     [Fact]
+    public async Task AdjustStockAsync_WhenReasonIsEmpty_ReturnsValidationProblem()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        var request = new AdjustProductStockRequest
+        {
+            QuantityDelta = 1,
+            Reason = "   "
+        };
+
+        // Act
+        using var response = await client.PatchAsJsonAsync(
+            "/api/products/1/stock",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "reason",
+            "Stock movement reason is required.");
+    }
+
+    [Fact]
     public async Task AdjustStockAsync_WhenProductDoesNotExist_ReturnsNotFound()
     {
         // Arrange
@@ -524,7 +578,8 @@ public sealed class ProductEndpointTests
 
         var request = new AdjustProductStockRequest
         {
-            QuantityDelta = -1
+            QuantityDelta = -1,
+            Reason = "Customer order"
         };
 
         // Act
@@ -572,7 +627,8 @@ public sealed class ProductEndpointTests
 
         var request = new AdjustProductStockRequest
         {
-            QuantityDelta = -3
+            QuantityDelta = -3,
+            Reason = "Customer order"
         };
 
         // Act
@@ -595,6 +651,100 @@ public sealed class ProductEndpointTests
 
         Assert.NotNull(product);
         Assert.Equal(2, product.StockQuantity);
+    }
+
+    [Fact]
+    public async Task GetStockMovementsAsync_WhenMovementsExist_ReturnsNewestFirst()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var product = new Product
+            {
+                Name = "Stocked Product",
+                Price = 100m,
+                StockQuantity = 10,
+                IsActive = true,
+                Category = new Category
+                {
+                    Name = "Test Category",
+                    IsActive = true
+                }
+            };
+
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+        });
+
+        await client.PatchAsJsonAsync(
+            $"/api/products/{productId}/stock",
+            new AdjustProductStockRequest
+            {
+                QuantityDelta = 5,
+                Reason = "Warehouse delivery"
+            });
+
+        await client.PatchAsJsonAsync(
+            $"/api/products/{productId}/stock",
+            new AdjustProductStockRequest
+            {
+                QuantityDelta = -2,
+                Reason = "Customer order"
+            });
+
+        // Act
+        using var response = await client.GetAsync(
+            $"/api/products/{productId}/stock-movements");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var movements = await response.Content
+            .ReadFromJsonAsync<List<StockMovementResponse>>();
+
+        Assert.Collection(
+            Assert.IsType<List<StockMovementResponse>>(movements),
+            latest =>
+            {
+                Assert.Equal(-2, latest.QuantityDelta);
+                Assert.Equal(13, latest.StockQuantityAfter);
+                Assert.Equal("Customer order", latest.Reason);
+            },
+            previous =>
+            {
+                Assert.Equal(5, previous.QuantityDelta);
+                Assert.Equal(15, previous.StockQuantityAfter);
+                Assert.Equal("Warehouse delivery", previous.Reason);
+            });
+    }
+
+    [Fact]
+    public async Task GetStockMovementsAsync_WhenProductDoesNotExist_ReturnsNotFound()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateClient();
+
+        await factory.SeedDatabaseAsync(
+            _ => Task.CompletedTask);
+
+        // Act
+        using var response = await client.GetAsync(
+            "/api/products/999/stock-movements");
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not Found",
+            "Product with ID 999 was not found.");
     }
 
     [Fact]

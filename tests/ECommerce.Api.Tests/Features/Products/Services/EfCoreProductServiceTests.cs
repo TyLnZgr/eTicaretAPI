@@ -4,6 +4,7 @@ using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Tests.Features.Products.Services;
 
@@ -58,7 +59,9 @@ public sealed class EfCoreProductServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var service = new EfCoreProductService(dbContext);
+        var service = new EfCoreProductService(
+            dbContext,
+            TimeProvider.System);
 
         var queryParameters = new ProductQueryParameters
         {
@@ -169,7 +172,9 @@ public sealed class EfCoreProductServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var service = new EfCoreProductService(dbContext);
+        var service = new EfCoreProductService(
+            dbContext,
+            TimeProvider.System);
 
         var queryParameters = new ProductQueryParameters
         {
@@ -203,6 +208,48 @@ public sealed class EfCoreProductServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_WhenInitialStockIsPositive_CreatesOpeningMovement()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var category = new Category
+        {
+            Name = "Test Category",
+            IsActive = true
+        };
+
+        database.DbContext.Categories.Add(category);
+        await database.DbContext.SaveChangesAsync();
+
+        var service = new EfCoreProductService(
+            database.DbContext,
+            TimeProvider.System);
+
+        // Act
+        var result = await service.CreateAsync(
+            name: "New Product",
+            price: 100m,
+            stockQuantity: 8,
+            categoryId: category.Id,
+            isActive: true);
+
+        // Assert
+        Assert.Equal(ProductMutationStatus.Success, result.Status);
+        Assert.NotNull(result.Product);
+
+        var movement = await database.DbContext.StockMovements
+            .AsNoTracking()
+            .SingleAsync();
+
+        Assert.Equal(result.Product.Id, movement.ProductId);
+        Assert.Equal(8, movement.QuantityDelta);
+        Assert.Equal(8, movement.StockQuantityAfter);
+        Assert.Equal("Initial stock", movement.Reason);
+    }
+
+    [Fact]
     public async Task AdjustStockAsync_WhenDecreaseIsValid_UpdatesStock()
     {
         // Arrange
@@ -226,12 +273,15 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.SaveChangesAsync();
 
         var service =
-            new EfCoreProductService(database.DbContext);
+            new EfCoreProductService(
+                database.DbContext,
+                TimeProvider.System);
 
         // Act
         var status = await service.AdjustStockAsync(
             product.Id,
-            quantityDelta: -3);
+            quantityDelta: -3,
+            reason: "Customer order");
 
         // Assert
         Assert.Equal(
@@ -241,6 +291,15 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.Entry(product).ReloadAsync();
 
         Assert.Equal(2, product.StockQuantity);
+
+        var movement = await database.DbContext.StockMovements
+            .AsNoTracking()
+            .SingleAsync();
+
+        Assert.Equal(product.Id, movement.ProductId);
+        Assert.Equal(-3, movement.QuantityDelta);
+        Assert.Equal(2, movement.StockQuantityAfter);
+        Assert.Equal("Customer order", movement.Reason);
     }
 
     [Fact]
@@ -267,12 +326,15 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.SaveChangesAsync();
 
         var service =
-            new EfCoreProductService(database.DbContext);
+            new EfCoreProductService(
+                database.DbContext,
+                TimeProvider.System);
 
         // Act
         var status = await service.AdjustStockAsync(
             product.Id,
-            quantityDelta: -3);
+            quantityDelta: -3,
+            reason: "Customer order");
 
         // Assert
         Assert.Equal(
@@ -282,6 +344,8 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.Entry(product).ReloadAsync();
 
         Assert.Equal(2, product.StockQuantity);
+        Assert.False(
+            await database.DbContext.StockMovements.AnyAsync());
     }
 
     [Fact]
@@ -308,12 +372,15 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.SaveChangesAsync();
 
         var service =
-            new EfCoreProductService(database.DbContext);
+            new EfCoreProductService(
+                database.DbContext,
+                TimeProvider.System);
 
         // Act
         var status = await service.AdjustStockAsync(
             product.Id,
-            quantityDelta: 1);
+            quantityDelta: 1,
+            reason: "Warehouse delivery");
 
         // Assert
         Assert.Equal(
@@ -323,5 +390,52 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.Entry(product).ReloadAsync();
 
         Assert.Equal(int.MaxValue, product.StockQuantity);
+        Assert.False(
+            await database.DbContext.StockMovements.AnyAsync());
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WhenReasonIsInvalid_DoesNotChangeStock()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var product = new Product
+        {
+            Name = "Stocked Product",
+            Price = 100m,
+            StockQuantity = 5,
+            IsActive = true,
+            Category = new Category
+            {
+                Name = "Test Category",
+                IsActive = true
+            }
+        };
+
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
+        var service = new EfCoreProductService(
+            database.DbContext,
+            TimeProvider.System);
+
+        // Act
+        var status = await service.AdjustStockAsync(
+            product.Id,
+            quantityDelta: -1,
+            reason: "   ");
+
+        // Assert
+        Assert.Equal(
+            ProductStockAdjustmentStatus.InvalidReason,
+            status);
+
+        await database.DbContext.Entry(product).ReloadAsync();
+
+        Assert.Equal(5, product.StockQuantity);
+        Assert.False(
+            await database.DbContext.StockMovements.AnyAsync());
     }
 }
