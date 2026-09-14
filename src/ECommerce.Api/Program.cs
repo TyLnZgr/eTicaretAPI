@@ -8,6 +8,7 @@ using ECommerce.Api.Features.Payments.Services;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Identity;
 using ECommerce.Api.Identity.Authorization;
+using ECommerce.Api.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -25,6 +26,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddControllers();
+builder.Services
+    .AddOptions<OutboxOptions>()
+    .Bind(builder.Configuration.GetSection(OutboxOptions.SectionName))
+    .Validate(
+        options => options.BatchSize is >= 1 and <= 500,
+        "Outbox batch size must be between 1 and 500.")
+    .Validate(
+        options => options.PollingInterval >= TimeSpan.FromSeconds(1),
+        "Outbox polling interval must be at least one second.")
+    .ValidateOnStart();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(
@@ -61,6 +72,11 @@ builder.Services.AddScoped<IOrderPlacementService, EfCoreOrderPlacementService>(
 builder.Services.AddScoped<IPaymentService, EfCorePaymentService>();
 builder.Services.AddScoped<ICartService, EfCoreCartService>();
 builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
+builder.Services.AddSingleton<
+    IIntegrationEventPublisher,
+    LoggingIntegrationEventPublisher>();
+builder.Services.AddScoped<IOutboxProcessor, EfCoreOutboxProcessor>();
+builder.Services.AddHostedService<OutboxBackgroundService>();
 builder.Services.AddScoped<IdentityDataSeeder>();
 
 var app = builder.Build();

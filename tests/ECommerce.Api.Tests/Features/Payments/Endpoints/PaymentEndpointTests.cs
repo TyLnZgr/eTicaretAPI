@@ -3,8 +3,11 @@ using System.Net.Http.Json;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Payments.Dtos;
+using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
@@ -120,6 +123,35 @@ public sealed class PaymentEndpointTests
                 "tok_success",
                 savedPayment.RequestFingerprint,
                 StringComparison.Ordinal);
+
+            var outboxMessage = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .SingleAsync();
+
+            Assert.Equal(
+                IntegrationEventTypes.OrderPaidV1,
+                outboxMessage.Type);
+            Assert.Equal(
+                $"payment:{savedPayment.Id}:succeeded",
+                outboxMessage.DeduplicationKey);
+            Assert.Null(outboxMessage.ProcessedAtUtc);
+            Assert.Equal(0, outboxMessage.AttemptCount);
+
+            var orderPaidEvent = JsonSerializer
+                .Deserialize<OrderPaidIntegrationEvent>(
+                    outboxMessage.Payload,
+                    JsonSerializerOptions.Web);
+
+            Assert.NotNull(orderPaidEvent);
+            Assert.Equal(orderId, orderPaidEvent.OrderId);
+            Assert.Equal(savedPayment.Id, orderPaidEvent.PaymentId);
+            Assert.Equal(2500m, orderPaidEvent.Amount);
+            Assert.Equal("TRY", orderPaidEvent.Currency);
+            Assert.Contains("\"orderId\"", outboxMessage.Payload);
+            Assert.DoesNotContain(
+                "tok_success",
+                outboxMessage.Payload,
+                StringComparison.OrdinalIgnoreCase);
         });
     }
 
@@ -168,6 +200,8 @@ public sealed class PaymentEndpointTests
                 await dbContext.Payments
                     .Select(candidate => candidate.Status)
                     .SingleAsync());
+            Assert.False(
+                await dbContext.OutboxMessages.AnyAsync());
         });
     }
 
@@ -212,6 +246,7 @@ public sealed class PaymentEndpointTests
         await factory.SeedDatabaseAsync(async dbContext =>
         {
             Assert.Equal(1, await dbContext.Payments.CountAsync());
+            Assert.Equal(1, await dbContext.OutboxMessages.CountAsync());
             Assert.Equal(
                 OrderStatus.Paid,
                 await dbContext.Orders

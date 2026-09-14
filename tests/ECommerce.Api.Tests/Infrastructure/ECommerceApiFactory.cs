@@ -33,7 +33,8 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
             configuration.AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["Identity:BootstrapAdminEmail"] = string.Empty
+                    ["Identity:BootstrapAdminEmail"] = string.Empty,
+                    ["Outbox:Enabled"] = "false"
                 });
         });
 

@@ -1,4 +1,5 @@
 using ECommerce.Api.Identity;
+using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Api.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -23,6 +24,7 @@ public class ECommerceDbContext
     public DbSet<CustomerAddress> CustomerAddresses =>
         Set<CustomerAddress>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

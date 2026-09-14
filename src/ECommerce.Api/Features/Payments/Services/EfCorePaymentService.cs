@@ -1,9 +1,12 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using ECommerce.Api.Data;
+using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Features.Payments.Gateways;
 using ECommerce.Api.Features.Payments.Outcomes;
+using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -276,6 +279,22 @@ public sealed class EfCorePaymentService : IPaymentService
                     ?? throw new InvalidOperationException(
                         "The payment gateway did not return a payment ID."),
                 now);
+
+            var orderPaidEvent = new OrderPaidIntegrationEvent(
+                payment.OrderId,
+                payment.Id,
+                payment.Amount,
+                payment.Currency,
+                now);
+
+            _dbContext.OutboxMessages.Add(
+                new OutboxMessage(
+                    IntegrationEventTypes.OrderPaidV1,
+                    $"payment:{payment.Id}:succeeded",
+                    JsonSerializer.Serialize(
+                        orderPaidEvent,
+                        JsonSerializerOptions.Web),
+                    now));
         }
         else
         {
