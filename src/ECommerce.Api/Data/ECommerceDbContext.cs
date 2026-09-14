@@ -25,6 +25,9 @@ public class ECommerceDbContext
         Set<CustomerAddress>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
+    public DbSet<CustomerNotification> CustomerNotifications =>
+        Set<CustomerNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

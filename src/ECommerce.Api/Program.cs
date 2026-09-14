@@ -3,6 +3,8 @@ using ECommerce.Api.Features.Addresses.Services;
 using ECommerce.Api.Features.Carts.Services;
 using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Orders.Services;
+using ECommerce.Api.Features.Notifications.IntegrationEvents;
+using ECommerce.Api.Features.Notifications.Services;
 using ECommerce.Api.Features.Payments.Gateways;
 using ECommerce.Api.Features.Payments.Services;
 using ECommerce.Api.Features.Products.Services;
@@ -70,11 +72,15 @@ builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
 builder.Services.AddScoped<IOrderService, EfCoreOrderService>();
 builder.Services.AddScoped<IOrderPlacementService, EfCoreOrderPlacementService>();
 builder.Services.AddScoped<IPaymentService, EfCorePaymentService>();
+builder.Services.AddScoped<INotificationService, EfCoreNotificationService>();
 builder.Services.AddScoped<ICartService, EfCoreCartService>();
 builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
 builder.Services.AddSingleton<
     IIntegrationEventPublisher,
-    LoggingIntegrationEventPublisher>();
+    InProcessIntegrationEventPublisher>();
+builder.Services.AddScoped<
+    IIntegrationEventHandler,
+    OrderPaidNotificationHandler>();
 builder.Services.AddScoped<IOutboxProcessor, EfCoreOutboxProcessor>();
 builder.Services.AddHostedService<OutboxBackgroundService>();
 builder.Services.AddScoped<IdentityDataSeeder>();

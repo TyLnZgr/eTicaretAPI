@@ -4,6 +4,7 @@
 @adminAccessToken = paste-admin-access-token-here
 @idempotencyKey = order-1-payment-attempt-1
 @paymentId = paste-payment-id-here
+@notificationId = paste-notification-id-here
 
 GET {{ECommerce.Api_HostAddress}}/
 Accept: application/json
@@ -248,6 +249,17 @@ Content-Type: application/json
 GET {{ECommerce.Api_HostAddress}}/api/orders/1/payments/{{paymentId}}
 Authorization: Bearer {{accessToken}}
 Accept: application/json
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/notifications?unreadOnly=true&page=1&pageSize=20
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+PATCH {{ECommerce.Api_HostAddress}}/api/notifications/{{notificationId}}/read
+Authorization: Bearer {{accessToken}}
 
 ###
 

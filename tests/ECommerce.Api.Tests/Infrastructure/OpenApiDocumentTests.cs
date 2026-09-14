@@ -258,5 +258,29 @@ public sealed class OpenApiDocumentTests
             getPaymentResponses.TryGetProperty("401", out _));
         Assert.True(
             getPaymentResponses.TryGetProperty("404", out _));
+
+        var listNotificationResponses = paths
+            .GetProperty("/api/notifications")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(
+            listNotificationResponses.TryGetProperty("200", out _));
+        Assert.True(
+            listNotificationResponses.TryGetProperty("400", out _));
+        Assert.True(
+            listNotificationResponses.TryGetProperty("401", out _));
+
+        var markNotificationReadResponses = paths
+            .GetProperty("/api/notifications/{id}/read")
+            .GetProperty("patch")
+            .GetProperty("responses");
+
+        Assert.True(
+            markNotificationReadResponses.TryGetProperty("204", out _));
+        Assert.True(
+            markNotificationReadResponses.TryGetProperty("401", out _));
+        Assert.True(
+            markNotificationReadResponses.TryGetProperty("404", out _));
     }
 }

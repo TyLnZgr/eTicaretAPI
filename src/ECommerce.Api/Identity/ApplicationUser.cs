@@ -9,4 +9,6 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public ICollection<CustomerAddress> Addresses { get; set; }
         = new List<CustomerAddress>();
+    public ICollection<CustomerNotification> Notifications { get; set; }
+        = new List<CustomerNotification>();
 }
