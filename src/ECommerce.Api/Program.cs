@@ -1,7 +1,5 @@
 using ECommerce.Api.Data;
-using ECommerce.Api.Features.Categories.Endpoints;
 using ECommerce.Api.Features.Categories.Services;
-using ECommerce.Api.Features.Products.Endpoints;
 using ECommerce.Api.Features.Products.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -18,6 +16,7 @@ builder.Services.AddDbContext<ECommerceDbContext>(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddControllers();
 
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
@@ -26,6 +25,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.MapControllers();
 
 if (app.Environment.IsDevelopment())
 {
@@ -43,9 +43,6 @@ app.MapGet("/", () => new
 {
     message = "ECommerce API is running."
 });
-
-app.MapProductEndpoints();
-app.MapCategoryEndpoints();
 
 app.Run();
 
