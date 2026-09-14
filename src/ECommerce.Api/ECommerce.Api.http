@@ -2,6 +2,8 @@
 @accessToken = paste-access-token-here
 @refreshToken = paste-refresh-token-here
 @adminAccessToken = paste-admin-access-token-here
+@idempotencyKey = order-1-payment-attempt-1
+@paymentId = paste-payment-id-here
 
 GET {{ECommerce.Api_HostAddress}}/
 Accept: application/json
@@ -43,6 +45,55 @@ Accept: application/json
 
 ###
 
+GET {{ECommerce.Api_HostAddress}}/api/addresses
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/addresses
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "label": "Home",
+  "recipientFullName": "Taylor Customer",
+  "phoneNumber": "+90 555 111 22 33",
+  "addressLine1": "Example Street No: 10",
+  "addressLine2": "Floor 2",
+  "district": "Kadikoy",
+  "city": "Istanbul",
+  "postalCode": "34710",
+  "countryCode": "TR",
+  "isDefault": true
+}
+
+###
+
+PUT {{ECommerce.Api_HostAddress}}/api/addresses/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "label": "Office",
+  "recipientFullName": "Taylor Customer",
+  "phoneNumber": "+90 555 111 22 33",
+  "addressLine1": "Business Avenue No: 20",
+  "addressLine2": null,
+  "district": "Besiktas",
+  "city": "Istanbul",
+  "postalCode": "34340",
+  "countryCode": "TR",
+  "isDefault": false
+}
+
+###
+
+DELETE {{ECommerce.Api_HostAddress}}/api/addresses/1
+Authorization: Bearer {{accessToken}}
+
+###
+
 GET {{ECommerce.Api_HostAddress}}/api/cart
 Authorization: Bearer {{accessToken}}
 Accept: application/json
@@ -61,6 +112,11 @@ Content-Type: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/cart/checkout
 Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "addressId": 1
+}
 
 ###
 
@@ -155,6 +211,7 @@ Content-Type: application/json
 Authorization: Bearer {{accessToken}}
 
 {
+  "addressId": 1,
   "items": [
     {
       "productId": 1,
@@ -174,6 +231,23 @@ Authorization: Bearer {{accessToken}}
 GET {{ECommerce.Api_HostAddress}}/api/orders?status=Pending&page=1&pageSize=20
 Accept: application/json
 Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/orders/1/payments
+Authorization: Bearer {{accessToken}}
+Idempotency-Key: {{idempotencyKey}}
+Content-Type: application/json
+
+{
+  "paymentMethodToken": "tok_success"
+}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/orders/1/payments/{{paymentId}}
+Authorization: Bearer {{accessToken}}
+Accept: application/json
 
 ###
 

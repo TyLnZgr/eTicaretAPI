@@ -14,6 +14,14 @@ public static class OrderRequestValidator
     {
         var errors = new Dictionary<string, string[]>();
 
+        if (request.AddressId <= 0)
+        {
+            errors["addressId"] = new[]
+            {
+                "A valid shipping address ID is required."
+            };
+        }
+
         if (request.Items is null || request.Items.Count == 0)
         {
             errors["items"] = new[]
@@ -196,6 +204,8 @@ public static class OrderRequestValidator
             ignoreCase: true,
             out status);
 
-        return wasParsed && Enum.IsDefined(status);
+        return wasParsed &&
+            Enum.IsDefined(status) &&
+            status != OrderStatus.PaymentProcessing;
     }
 }

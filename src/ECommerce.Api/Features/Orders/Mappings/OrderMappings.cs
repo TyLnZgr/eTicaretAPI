@@ -12,7 +12,9 @@ public static class OrderMappings
             order.CustomerEmail,
             order.Status.ToString(),
             order.TotalAmount,
+            order.Currency,
             order.CreatedAtUtc,
+            MapShippingAddress(order.ShippingAddress),
             MapItems(order));
     }
 
@@ -24,8 +26,29 @@ public static class OrderMappings
             order.CustomerEmail,
             order.Status.ToString(),
             order.TotalAmount,
+            order.Currency,
             order.CreatedAtUtc,
+            MapShippingAddress(order.ShippingAddress),
             MapItems(order));
+    }
+
+    private static OrderAddressResponse? MapShippingAddress(
+        OrderAddressSnapshot? address)
+    {
+        if (address is null)
+        {
+            return null;
+        }
+
+        return new OrderAddressResponse(
+            address.RecipientFullName,
+            address.PhoneNumber,
+            address.AddressLine1,
+            address.AddressLine2,
+            address.District,
+            address.City,
+            address.PostalCode,
+            address.CountryCode);
     }
 
     private static OrderItemResponse[] MapItems(Order order)

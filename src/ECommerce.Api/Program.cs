@@ -1,7 +1,10 @@
 using ECommerce.Api.Data;
+using ECommerce.Api.Features.Addresses.Services;
 using ECommerce.Api.Features.Carts.Services;
 using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Orders.Services;
+using ECommerce.Api.Features.Payments.Gateways;
+using ECommerce.Api.Features.Payments.Services;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Identity;
 using ECommerce.Api.Identity.Authorization;
@@ -51,10 +54,13 @@ builder.Services
     .AddEntityFrameworkStores<ECommerceDbContext>();
 
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
+builder.Services.AddScoped<ICustomerAddressService, EfCoreCustomerAddressService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
 builder.Services.AddScoped<IOrderService, EfCoreOrderService>();
 builder.Services.AddScoped<IOrderPlacementService, EfCoreOrderPlacementService>();
+builder.Services.AddScoped<IPaymentService, EfCorePaymentService>();
 builder.Services.AddScoped<ICartService, EfCoreCartService>();
+builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
 builder.Services.AddScoped<IdentityDataSeeder>();
 
 var app = builder.Build();

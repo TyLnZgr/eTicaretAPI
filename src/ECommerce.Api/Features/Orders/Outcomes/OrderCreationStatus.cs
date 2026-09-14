@@ -5,6 +5,7 @@ public enum OrderCreationStatus
     Success,
     InvalidRequest,
     CustomerNotFound,
+    ShippingAddressNotFound,
     ProductNotFound,
     ProductInactive,
     InsufficientStock,

@@ -21,6 +21,7 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
     public async Task<OrderCreationResult> CreateAsync(
         Guid customerId,
+        int addressId,
         IReadOnlyList<CreateOrderItemRequest> items,
         CancellationToken cancellationToken = default)
     {
@@ -30,6 +31,7 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
         var result = await CreateCoreAsync(
             customerId,
+            addressId,
             items,
             cancellationToken);
 
@@ -45,9 +47,10 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
     public async Task<OrderCreationResult> CheckoutCartAsync(
         Guid customerId,
+        int addressId,
         CancellationToken cancellationToken = default)
     {
-        if (customerId == Guid.Empty)
+        if (customerId == Guid.Empty || addressId <= 0)
         {
             return new OrderCreationResult(
                 OrderCreationStatus.InvalidRequest);
@@ -82,6 +85,7 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
         var result = await CreateCoreAsync(
             customerId,
+            addressId,
             requestedItems,
             cancellationToken);
 
@@ -110,10 +114,12 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
     private async Task<OrderCreationResult> CreateCoreAsync(
         Guid customerId,
+        int addressId,
         IReadOnlyList<CreateOrderItemRequest> items,
         CancellationToken cancellationToken)
     {
         if (customerId == Guid.Empty ||
+            addressId <= 0 ||
             items is null ||
             items.Count == 0 ||
             items.Count > 100 ||
@@ -145,6 +151,21 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
         {
             return new OrderCreationResult(
                 OrderCreationStatus.CustomerNotFound);
+        }
+
+        var shippingAddress = await _dbContext.CustomerAddresses
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                address =>
+                    address.Id == addressId &&
+                    address.CustomerId == customerId,
+                cancellationToken);
+
+        if (shippingAddress is null)
+        {
+            return new OrderCreationResult(
+                OrderCreationStatus.ShippingAddressNotFound,
+                AddressId: addressId);
         }
 
         var products = await _dbContext.Products
@@ -186,6 +207,17 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
             CustomerEmail = customerEmail.Trim().ToLowerInvariant(),
             CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
         };
+
+        order.SetShippingAddress(
+            new OrderAddressSnapshot(
+                shippingAddress.RecipientFullName,
+                shippingAddress.PhoneNumber,
+                shippingAddress.AddressLine1,
+                shippingAddress.AddressLine2,
+                shippingAddress.District,
+                shippingAddress.City,
+                shippingAddress.PostalCode,
+                shippingAddress.CountryCode));
 
         foreach (var requestedItem in requestedItems)
         {

@@ -173,5 +173,90 @@ public sealed class OpenApiDocumentTests
             checkoutCartResponses.TryGetProperty("404", out _));
         Assert.True(
             checkoutCartResponses.TryGetProperty("409", out _));
+
+        var addressCollection = paths
+            .GetProperty("/api/addresses");
+
+        var listAddressResponses = addressCollection
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(
+            listAddressResponses.TryGetProperty("200", out _));
+        Assert.True(
+            listAddressResponses.TryGetProperty("401", out _));
+
+        var createAddressResponses = addressCollection
+            .GetProperty("post")
+            .GetProperty("responses");
+
+        Assert.True(
+            createAddressResponses.TryGetProperty("201", out _));
+        Assert.True(
+            createAddressResponses.TryGetProperty("400", out _));
+        Assert.True(
+            createAddressResponses.TryGetProperty("401", out _));
+        Assert.True(
+            createAddressResponses.TryGetProperty("409", out _));
+
+        var addressById = paths
+            .GetProperty("/api/addresses/{id}");
+
+        var updateAddressResponses = addressById
+            .GetProperty("put")
+            .GetProperty("responses");
+
+        Assert.True(
+            updateAddressResponses.TryGetProperty("200", out _));
+        Assert.True(
+            updateAddressResponses.TryGetProperty("400", out _));
+        Assert.True(
+            updateAddressResponses.TryGetProperty("401", out _));
+        Assert.True(
+            updateAddressResponses.TryGetProperty("404", out _));
+
+        var deleteAddressResponses = addressById
+            .GetProperty("delete")
+            .GetProperty("responses");
+
+        Assert.True(
+            deleteAddressResponses.TryGetProperty("204", out _));
+        Assert.True(
+            deleteAddressResponses.TryGetProperty("401", out _));
+        Assert.True(
+            deleteAddressResponses.TryGetProperty("404", out _));
+
+        var processPaymentResponses = paths
+            .GetProperty("/api/orders/{orderId}/payments")
+            .GetProperty("post")
+            .GetProperty("responses");
+
+        Assert.True(
+            processPaymentResponses.TryGetProperty("200", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("201", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("400", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("401", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("402", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("404", out _));
+        Assert.True(
+            processPaymentResponses.TryGetProperty("409", out _));
+
+        var getPaymentResponses = paths
+            .GetProperty(
+                "/api/orders/{orderId}/payments/{paymentId}")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(
+            getPaymentResponses.TryGetProperty("200", out _));
+        Assert.True(
+            getPaymentResponses.TryGetProperty("401", out _));
+        Assert.True(
+            getPaymentResponses.TryGetProperty("404", out _));
     }
 }

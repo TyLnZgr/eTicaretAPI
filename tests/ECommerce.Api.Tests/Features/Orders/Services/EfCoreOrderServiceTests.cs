@@ -20,6 +20,7 @@ public sealed class EfCoreOrderServiceTests
         var customer = TestEntityFactory.CreateUser(
             customerId,
             "customer@example.com");
+        var address = TestEntityFactory.CreateAddress(customerId);
         var category = new Category
         {
             Name = "Accessories",
@@ -45,6 +46,7 @@ public sealed class EfCoreOrderServiceTests
         };
 
         database.DbContext.Users.Add(customer);
+        database.DbContext.CustomerAddresses.Add(address);
         database.DbContext.Products.AddRange(
             availableProduct,
             lowStockProduct);
@@ -71,6 +73,7 @@ public sealed class EfCoreOrderServiceTests
         // Act
         var result = await service.CreateAsync(
             customerId,
+            address.Id,
             items);
 
         // Assert

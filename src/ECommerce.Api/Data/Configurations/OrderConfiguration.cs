@@ -18,11 +18,75 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_Status_Valid",
-                    "\"Status\" IN (1, 2, 3, 4, 5)");
+                    "\"Status\" IN (1, 2, 3, 4, 5, 6)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_Currency_Valid",
+                    "length(\"Currency\") = 3 AND " +
+                    "\"Currency\" = upper(\"Currency\")");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_TotalAmount_Positive",
                     "CAST(\"TotalAmount\" AS NUMERIC) > 0");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingAddress_Complete",
+                    "(\"ShippingRecipientFullName\" IS NULL AND " +
+                    "\"ShippingPhoneNumber\" IS NULL AND " +
+                    "\"ShippingAddressLine1\" IS NULL AND " +
+                    "\"ShippingAddressLine2\" IS NULL AND " +
+                    "\"ShippingDistrict\" IS NULL AND " +
+                    "\"ShippingCity\" IS NULL AND " +
+                    "\"ShippingPostalCode\" IS NULL AND " +
+                    "\"ShippingCountryCode\" IS NULL) OR " +
+                    "(\"ShippingRecipientFullName\" IS NOT NULL AND " +
+                    "\"ShippingPhoneNumber\" IS NOT NULL AND " +
+                    "\"ShippingAddressLine1\" IS NOT NULL AND " +
+                    "\"ShippingDistrict\" IS NOT NULL AND " +
+                    "\"ShippingCity\" IS NOT NULL AND " +
+                    "\"ShippingPostalCode\" IS NOT NULL AND " +
+                    "\"ShippingCountryCode\" IS NOT NULL)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingRecipientFullName_Valid",
+                    "\"ShippingRecipientFullName\" IS NULL OR " +
+                    "length(trim(\"ShippingRecipientFullName\")) BETWEEN 2 AND 200");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingPhoneNumber_Valid",
+                    "\"ShippingPhoneNumber\" IS NULL OR " +
+                    "length(trim(\"ShippingPhoneNumber\")) BETWEEN 3 AND 30");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingAddressLine1_Valid",
+                    "\"ShippingAddressLine1\" IS NULL OR " +
+                    "length(trim(\"ShippingAddressLine1\")) BETWEEN 5 AND 300");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingAddressLine2_Valid",
+                    "\"ShippingAddressLine2\" IS NULL OR " +
+                    "length(trim(\"ShippingAddressLine2\")) BETWEEN 1 AND 300");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingDistrict_Valid",
+                    "\"ShippingDistrict\" IS NULL OR " +
+                    "length(trim(\"ShippingDistrict\")) BETWEEN 1 AND 100");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingCity_Valid",
+                    "\"ShippingCity\" IS NULL OR " +
+                    "length(trim(\"ShippingCity\")) BETWEEN 1 AND 100");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingPostalCode_Valid",
+                    "\"ShippingPostalCode\" IS NULL OR " +
+                    "length(trim(\"ShippingPostalCode\")) BETWEEN 1 AND 20");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_ShippingCountryCode_Valid",
+                    "\"ShippingCountryCode\" IS NULL OR " +
+                    "(length(\"ShippingCountryCode\") = 2 AND " +
+                    "\"ShippingCountryCode\" = upper(\"ShippingCountryCode\"))");
             });
 
         builder.HasKey(order => order.Id);
@@ -37,8 +101,55 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.TotalAmount)
             .HasPrecision(18, 2);
 
+        builder.Property(order => order.Currency)
+            .IsRequired()
+            .HasMaxLength(3)
+            .IsFixedLength()
+            .HasDefaultValue("TRY");
+
         builder.Property(order => order.CreatedAtUtc)
             .IsRequired();
+
+        builder.OwnsOne(
+            order => order.ShippingAddress,
+            shippingAddress =>
+            {
+                shippingAddress.Property(address => address.RecipientFullName)
+                    .HasColumnName("ShippingRecipientFullName")
+                    .HasMaxLength(200);
+
+                shippingAddress.Property(address => address.PhoneNumber)
+                    .HasColumnName("ShippingPhoneNumber")
+                    .HasMaxLength(30);
+
+                shippingAddress.Property(address => address.AddressLine1)
+                    .HasColumnName("ShippingAddressLine1")
+                    .HasMaxLength(300);
+
+                shippingAddress.Property(address => address.AddressLine2)
+                    .HasColumnName("ShippingAddressLine2")
+                    .HasMaxLength(300);
+
+                shippingAddress.Property(address => address.District)
+                    .HasColumnName("ShippingDistrict")
+                    .HasMaxLength(100);
+
+                shippingAddress.Property(address => address.City)
+                    .HasColumnName("ShippingCity")
+                    .HasMaxLength(100);
+
+                shippingAddress.Property(address => address.PostalCode)
+                    .HasColumnName("ShippingPostalCode")
+                    .HasMaxLength(20);
+
+                shippingAddress.Property(address => address.CountryCode)
+                    .HasColumnName("ShippingCountryCode")
+                    .HasMaxLength(2)
+                    .IsFixedLength();
+            });
+
+        builder.Navigation(order => order.ShippingAddress)
+            .IsRequired(false);
 
         builder.HasOne(order => order.Customer)
             .WithMany(customer => customer.Orders)

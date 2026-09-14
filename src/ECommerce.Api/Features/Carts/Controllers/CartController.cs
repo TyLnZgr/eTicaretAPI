@@ -227,6 +227,7 @@ public sealed class CartController : ControllerBase
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
     public async Task<ActionResult<OrderResponse>> CheckoutAsync(
+        [FromBody] CheckoutCartRequest request,
         CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var customerId))
@@ -234,8 +235,17 @@ public sealed class CartController : ControllerBase
             return Unauthorized();
         }
 
+        var errors = CartRequestValidator.ValidateCheckout(request);
+
+        if (errors.Count > 0)
+        {
+            return ValidationProblem(
+                new ValidationProblemDetails(errors));
+        }
+
         var result = await _orderPlacementService.CheckoutCartAsync(
             customerId,
+            request.AddressId,
             cancellationToken);
 
         if (result.Status == OrderCreationStatus.CustomerNotFound)
@@ -249,6 +259,15 @@ public sealed class CartController : ControllerBase
                 detail: "The cart is empty.",
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Conflict");
+        }
+
+        if (result.Status ==
+            OrderCreationStatus.ShippingAddressNotFound)
+        {
+            return Problem(
+                detail: $"Address with ID {result.AddressId} was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
         }
 
         if (result.Status == OrderCreationStatus.ProductNotFound)

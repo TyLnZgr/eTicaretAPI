@@ -132,6 +132,7 @@ public sealed class OrdersController : ControllerBase
 
         var result = await _orderPlacementService.CreateAsync(
             customerId,
+            request.AddressId,
             request.Items,
             cancellationToken);
 
@@ -151,6 +152,15 @@ public sealed class OrdersController : ControllerBase
                             "The order request is invalid."
                         }
                     }));
+        }
+
+        if (result.Status ==
+            OrderCreationStatus.ShippingAddressNotFound)
+        {
+            return Problem(
+                detail: $"Address with ID {result.AddressId} was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found");
         }
 
         if (result.Status == OrderCreationStatus.ProductNotFound)

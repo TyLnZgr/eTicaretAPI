@@ -31,4 +31,20 @@ public static class CartRequestValidator
 
         return errors;
     }
+
+    public static Dictionary<string, string[]> ValidateCheckout(
+        CheckoutCartRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (request.AddressId <= 0)
+        {
+            errors["addressId"] = new[]
+            {
+                "A valid shipping address ID is required."
+            };
+        }
+
+        return errors;
+    }
 }

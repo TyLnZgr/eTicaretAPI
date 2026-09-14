@@ -1,4 +1,5 @@
 using ECommerce.Api.Identity;
+using ECommerce.Api.Models;
 
 namespace ECommerce.Api.Tests.Infrastructure;
 
@@ -18,6 +19,29 @@ internal static class TestEntityFactory
             EmailConfirmed = true,
             SecurityStamp = Guid.NewGuid().ToString(),
             ConcurrencyStamp = Guid.NewGuid().ToString()
+        };
+    }
+
+    public static CustomerAddress CreateAddress(
+        Guid customerId,
+        string recipientFullName = "Taylor Customer",
+        string addressLine1 = "Example Street No: 10",
+        bool isDefault = true)
+    {
+        return new CustomerAddress
+        {
+            CustomerId = customerId,
+            Label = "Home",
+            RecipientFullName = recipientFullName,
+            PhoneNumber = "+90 555 111 22 33",
+            AddressLine1 = addressLine1,
+            District = "Kadikoy",
+            City = "Istanbul",
+            PostalCode = "34710",
+            CountryCode = "TR",
+            IsDefault = isDefault,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
         };
     }
 }

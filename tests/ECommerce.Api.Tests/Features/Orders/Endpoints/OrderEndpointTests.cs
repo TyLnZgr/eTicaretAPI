@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ECommerce.Api.Common.Pagination;
+using ECommerce.Api.Features.Addresses.Dtos;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Common.Http;
@@ -24,12 +25,18 @@ public sealed class OrderEndpointTests
             customerEmail);
 
         var productId = 0;
+        var addressId = 0;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
             dbContext.Users.Add(TestEntityFactory.CreateUser(
                 customerId,
                 customerEmail));
+
+            var address = TestEntityFactory.CreateAddress(
+                customerId,
+                recipientFullName: "Taylor Buyer",
+                addressLine1: "Snapshot Street No: 42");
 
             var product = new Product
             {
@@ -45,13 +52,16 @@ public sealed class OrderEndpointTests
             };
 
             dbContext.Products.Add(product);
+            dbContext.CustomerAddresses.Add(address);
             await dbContext.SaveChangesAsync();
 
             productId = product.Id;
+            addressId = address.Id;
         });
 
         var request = new CreateOrderRequest
         {
+            AddressId = addressId,
             Items = new List<CreateOrderItemRequest>
             {
                 new()
@@ -77,7 +87,15 @@ public sealed class OrderEndpointTests
         Assert.Equal(customerEmail, order.CustomerEmail);
         Assert.Equal("Pending", order.Status);
         Assert.Equal(2500m, order.TotalAmount);
+        Assert.Equal("TRY", order.Currency);
         Assert.Single(order.Items);
+        Assert.NotNull(order.ShippingAddress);
+        Assert.Equal(
+            "Taylor Buyer",
+            order.ShippingAddress.RecipientFullName);
+        Assert.Equal(
+            "Snapshot Street No: 42",
+            order.ShippingAddress.AddressLine1);
 
         Assert.NotNull(response.Headers.Location);
         Assert.Equal(
@@ -95,6 +113,10 @@ public sealed class OrderEndpointTests
             Assert.Equal(customerEmail, savedOrder.CustomerEmail);
             Assert.Equal(2500m, savedOrder.TotalAmount);
             Assert.Equal(2, Assert.Single(savedOrder.Items).Quantity);
+            Assert.NotNull(savedOrder.ShippingAddress);
+            Assert.Equal(
+                "Snapshot Street No: 42",
+                savedOrder.ShippingAddress.AddressLine1);
 
             var product = await dbContext.Products
                 .AsNoTracking()
@@ -109,6 +131,209 @@ public sealed class OrderEndpointTests
             Assert.Equal(-2, movement.QuantityDelta);
             Assert.Equal(3, movement.StockQuantityAfter);
             Assert.Equal("Order placement", movement.Reason);
+        });
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenAddressIdIsInvalid_ReturnsValidationProblem()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateCustomerClient();
+
+        var request = new CreateOrderRequest
+        {
+            AddressId = 0,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new()
+                {
+                    ProductId = 1,
+                    Quantity = 1
+                }
+            }
+        };
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            "/api/orders",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "addressId",
+            "A valid shipping address ID is required.");
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithAnotherCustomersAddress_ReturnsNotFoundWithoutMutatingStock()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+
+        var customerId = Guid.NewGuid();
+        var addressOwnerId = Guid.NewGuid();
+        using var client = factory.CreateCustomerClient(customerId);
+        var addressId = 0;
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            dbContext.Users.AddRange(
+                TestEntityFactory.CreateUser(
+                    customerId,
+                    "customer@example.com"),
+                TestEntityFactory.CreateUser(
+                    addressOwnerId,
+                    "owner@example.com"));
+
+            var address = TestEntityFactory.CreateAddress(addressOwnerId);
+            var product = CreateProduct(stockQuantity: 5);
+
+            dbContext.CustomerAddresses.Add(address);
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            addressId = address.Id;
+            productId = product.Id;
+        });
+
+        var request = new CreateOrderRequest
+        {
+            AddressId = addressId,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new()
+                {
+                    ProductId = productId,
+                    Quantity = 2
+                }
+            }
+        };
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            "/api/orders",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.NotFound,
+            "Not Found",
+            $"Address with ID {addressId} was not found.");
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.False(await dbContext.Orders.AnyAsync());
+            Assert.False(await dbContext.StockMovements.AnyAsync());
+
+            var stockQuantity = await dbContext.Products
+                .AsNoTracking()
+                .Where(product => product.Id == productId)
+                .Select(product => product.StockQuantity)
+                .SingleAsync();
+
+            Assert.Equal(5, stockQuantity);
+        });
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_AfterSourceAddressChangesAndIsDeleted_ReturnsOriginalSnapshot()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+
+        var customerId = Guid.NewGuid();
+        using var client = factory.CreateCustomerClient(customerId);
+        var addressId = 0;
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            dbContext.Users.Add(TestEntityFactory.CreateUser(
+                customerId,
+                "customer@example.com"));
+
+            var address = TestEntityFactory.CreateAddress(
+                customerId,
+                recipientFullName: "Original Recipient",
+                addressLine1: "Original Street No: 10");
+            var product = CreateProduct(stockQuantity: 5);
+
+            dbContext.CustomerAddresses.Add(address);
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            addressId = address.Id;
+            productId = product.Id;
+        });
+
+        using var createResponse = await client.PostAsJsonAsync(
+            "/api/orders",
+            new CreateOrderRequest
+            {
+                AddressId = addressId,
+                Items = new List<CreateOrderItemRequest>
+                {
+                    new()
+                    {
+                        ProductId = productId,
+                        Quantity = 1
+                    }
+                }
+            });
+
+        var createdOrder = await createResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+
+        Assert.NotNull(createdOrder);
+
+        using var updateResponse = await client.PutAsJsonAsync(
+            $"/api/addresses/{addressId}",
+            new UpdateCustomerAddressRequest
+            {
+                Label = "Changed",
+                RecipientFullName = "Changed Recipient",
+                PhoneNumber = "+90 555 999 88 77",
+                AddressLine1 = "Changed Street No: 99",
+                District = "Besiktas",
+                City = "Istanbul",
+                PostalCode = "34340",
+                CountryCode = "TR",
+                IsDefault = true
+            });
+
+        using var deleteResponse = await client.DeleteAsync(
+            $"/api/addresses/{addressId}");
+
+        // Act
+        using var getOrderResponse = await client.GetAsync(
+            $"/api/orders/{createdOrder.Id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, getOrderResponse.StatusCode);
+
+        var savedOrder = await getOrderResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+
+        Assert.NotNull(savedOrder);
+        Assert.NotNull(savedOrder.ShippingAddress);
+        Assert.Equal(
+            "Original Recipient",
+            savedOrder.ShippingAddress.RecipientFullName);
+        Assert.Equal(
+            "Original Street No: 10",
+            savedOrder.ShippingAddress.AddressLine1);
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.False(await dbContext.CustomerAddresses.AnyAsync());
+            Assert.True(await dbContext.Orders.AnyAsync());
         });
     }
 
@@ -430,6 +655,22 @@ public sealed class OrderEndpointTests
             CustomerEmail = customerEmail,
             TotalAmount = 100m,
             CreatedAtUtc = DateTime.UtcNow
+        };
+    }
+
+    private static Product CreateProduct(int stockQuantity)
+    {
+        return new Product
+        {
+            Name = "Keyboard",
+            Price = 1000m,
+            StockQuantity = stockQuantity,
+            IsActive = true,
+            Category = new Category
+            {
+                Name = "Accessories",
+                IsActive = true
+            }
         };
     }
 }

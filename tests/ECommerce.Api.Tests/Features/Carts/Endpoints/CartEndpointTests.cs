@@ -380,6 +380,7 @@ public sealed class CartEndpointTests
 
         var customerId = Guid.NewGuid();
         using var client = factory.CreateCustomerClient(customerId);
+        var addressId = 0;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -387,13 +388,17 @@ public sealed class CartEndpointTests
                 customerId,
                 "customer@example.com"));
 
+            var address = TestEntityFactory.CreateAddress(customerId);
+            dbContext.CustomerAddresses.Add(address);
+
             await dbContext.SaveChangesAsync();
+            addressId = address.Id;
         });
 
         // Act
-        using var response = await client.PostAsync(
+        using var response = await client.PostAsJsonAsync(
             "/api/cart/checkout",
-            content: null);
+            new CheckoutCartRequest { AddressId = addressId });
 
         // Assert
         await ProblemDetailsAssertions.AssertProblemAsync(
@@ -422,6 +427,7 @@ public sealed class CartEndpointTests
             customerEmail);
 
         var productId = 0;
+        var addressId = 0;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -433,6 +439,10 @@ public sealed class CartEndpointTests
             dbContext.Users.Add(TestEntityFactory.CreateUser(
                 customerId,
                 customerEmail));
+            var address = TestEntityFactory.CreateAddress(
+                customerId,
+                recipientFullName: "Taylor Buyer");
+            dbContext.CustomerAddresses.Add(address);
             dbContext.Carts.Add(new Cart
             {
                 CustomerId = customerId,
@@ -450,12 +460,13 @@ public sealed class CartEndpointTests
 
             await dbContext.SaveChangesAsync();
             productId = product.Id;
+            addressId = address.Id;
         });
 
         // Act
-        using var response = await client.PostAsync(
+        using var response = await client.PostAsJsonAsync(
             "/api/cart/checkout",
-            content: null);
+            new CheckoutCartRequest { AddressId = addressId });
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -467,6 +478,11 @@ public sealed class CartEndpointTests
         Assert.Equal(customerEmail, order.CustomerEmail);
         Assert.Equal("Pending", order.Status);
         Assert.Equal(2500m, order.TotalAmount);
+        Assert.Equal("TRY", order.Currency);
+        Assert.NotNull(order.ShippingAddress);
+        Assert.Equal(
+            "Taylor Buyer",
+            order.ShippingAddress.RecipientFullName);
 
         var orderItem = Assert.Single(order.Items);
         Assert.Equal(productId, orderItem.ProductId);
@@ -513,6 +529,7 @@ public sealed class CartEndpointTests
         var customerId = Guid.NewGuid();
         using var client = factory.CreateCustomerClient(customerId);
         var productId = 0;
+        var addressId = 0;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -523,6 +540,8 @@ public sealed class CartEndpointTests
             dbContext.Users.Add(TestEntityFactory.CreateUser(
                 customerId,
                 "customer@example.com"));
+            var address = TestEntityFactory.CreateAddress(customerId);
+            dbContext.CustomerAddresses.Add(address);
             dbContext.Carts.Add(new Cart
             {
                 CustomerId = customerId,
@@ -540,12 +559,13 @@ public sealed class CartEndpointTests
 
             await dbContext.SaveChangesAsync();
             productId = product.Id;
+            addressId = address.Id;
         });
 
         // Act
-        using var response = await client.PostAsync(
+        using var response = await client.PostAsJsonAsync(
             "/api/cart/checkout",
-            content: null);
+            new CheckoutCartRequest { AddressId = addressId });
 
         // Assert
         await ProblemDetailsAssertions.AssertProblemAsync(
@@ -580,6 +600,7 @@ public sealed class CartEndpointTests
         var customerId = Guid.NewGuid();
         using var client = factory.CreateCustomerClient(customerId);
         var productId = 0;
+        var addressId = 0;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -590,19 +611,22 @@ public sealed class CartEndpointTests
             dbContext.Users.Add(TestEntityFactory.CreateUser(
                 customerId,
                 "customer@example.com"));
+            var address = TestEntityFactory.CreateAddress(customerId);
+            dbContext.CustomerAddresses.Add(address);
             dbContext.Carts.Add(CreateCart(customerId, product));
 
             await dbContext.SaveChangesAsync();
             productId = product.Id;
+            addressId = address.Id;
         });
 
         // Act
-        using var firstResponse = await client.PostAsync(
+        using var firstResponse = await client.PostAsJsonAsync(
             "/api/cart/checkout",
-            content: null);
-        using var secondResponse = await client.PostAsync(
+            new CheckoutCartRequest { AddressId = addressId });
+        using var secondResponse = await client.PostAsJsonAsync(
             "/api/cart/checkout",
-            content: null);
+            new CheckoutCartRequest { AddressId = addressId });
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);

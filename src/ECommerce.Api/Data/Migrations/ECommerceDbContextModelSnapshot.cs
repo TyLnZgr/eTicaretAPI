@@ -157,6 +157,102 @@ namespace ECommerce.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ECommerce.Api.Models.CustomerAddress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AddressLine1")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("TEXT")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("District")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecipientFullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CustomerAddresses_CustomerId_Default")
+                        .HasFilter("\"IsDefault\" = 1");
+
+                    b.HasIndex("CustomerId", "UpdatedAtUtc");
+
+                    b.ToTable("CustomerAddresses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomerAddresses_AddressLine1_Valid", "length(trim(\"AddressLine1\")) BETWEEN 5 AND 300");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_AddressLine2_Valid", "\"AddressLine2\" IS NULL OR length(trim(\"AddressLine2\")) BETWEEN 1 AND 300");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_City_Valid", "length(trim(\"City\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_CountryCode_Valid", "length(\"CountryCode\") = 2 AND \"CountryCode\" = upper(\"CountryCode\")");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_District_Valid", "length(trim(\"District\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_IsDefault_Valid", "\"IsDefault\" IN (0, 1)");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_Label_Valid", "length(trim(\"Label\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_PhoneNumber_Valid", "length(trim(\"PhoneNumber\")) BETWEEN 3 AND 30");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_PostalCode_Valid", "length(trim(\"PostalCode\")) BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("CK_CustomerAddresses_RecipientFullName_Valid", "length(trim(\"RecipientFullName\")) BETWEEN 2 AND 200");
+                        });
+                });
+
             modelBuilder.Entity("ECommerce.Api.Models.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -165,6 +261,14 @@ namespace ECommerce.Api.Data.Migrations
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("TRY")
+                        .IsFixedLength();
 
                     b.Property<string>("CustomerEmail")
                         .IsRequired()
@@ -187,9 +291,29 @@ namespace ECommerce.Api.Data.Migrations
 
                     b.ToTable("Orders", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Orders_Currency_Valid", "length(\"Currency\") = 3 AND \"Currency\" = upper(\"Currency\")");
+
                             t.HasCheckConstraint("CK_Orders_CustomerEmail_Valid", "length(trim(\"CustomerEmail\")) BETWEEN 3 AND 254");
 
-                            t.HasCheckConstraint("CK_Orders_Status_Valid", "\"Status\" IN (1, 2, 3, 4, 5)");
+                            t.HasCheckConstraint("CK_Orders_ShippingAddressLine1_Valid", "\"ShippingAddressLine1\" IS NULL OR length(trim(\"ShippingAddressLine1\")) BETWEEN 5 AND 300");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingAddressLine2_Valid", "\"ShippingAddressLine2\" IS NULL OR length(trim(\"ShippingAddressLine2\")) BETWEEN 1 AND 300");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingAddress_Complete", "(\"ShippingRecipientFullName\" IS NULL AND \"ShippingPhoneNumber\" IS NULL AND \"ShippingAddressLine1\" IS NULL AND \"ShippingAddressLine2\" IS NULL AND \"ShippingDistrict\" IS NULL AND \"ShippingCity\" IS NULL AND \"ShippingPostalCode\" IS NULL AND \"ShippingCountryCode\" IS NULL) OR (\"ShippingRecipientFullName\" IS NOT NULL AND \"ShippingPhoneNumber\" IS NOT NULL AND \"ShippingAddressLine1\" IS NOT NULL AND \"ShippingDistrict\" IS NOT NULL AND \"ShippingCity\" IS NOT NULL AND \"ShippingPostalCode\" IS NOT NULL AND \"ShippingCountryCode\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingCity_Valid", "\"ShippingCity\" IS NULL OR length(trim(\"ShippingCity\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingCountryCode_Valid", "\"ShippingCountryCode\" IS NULL OR (length(\"ShippingCountryCode\") = 2 AND \"ShippingCountryCode\" = upper(\"ShippingCountryCode\"))");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingDistrict_Valid", "\"ShippingDistrict\" IS NULL OR length(trim(\"ShippingDistrict\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingPhoneNumber_Valid", "\"ShippingPhoneNumber\" IS NULL OR length(trim(\"ShippingPhoneNumber\")) BETWEEN 3 AND 30");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingPostalCode_Valid", "\"ShippingPostalCode\" IS NULL OR length(trim(\"ShippingPostalCode\")) BETWEEN 1 AND 20");
+
+                            t.HasCheckConstraint("CK_Orders_ShippingRecipientFullName_Valid", "\"ShippingRecipientFullName\" IS NULL OR length(trim(\"ShippingRecipientFullName\")) BETWEEN 2 AND 200");
+
+                            t.HasCheckConstraint("CK_Orders_Status_Valid", "\"Status\" IN (1, 2, 3, 4, 5, 6)");
 
                             t.HasCheckConstraint("CK_Orders_TotalAmount_Positive", "CAST(\"TotalAmount\" AS NUMERIC) > 0");
                         });
@@ -239,6 +363,88 @@ namespace ECommerce.Api.Data.Migrations
                             t.HasCheckConstraint("CK_OrderItems_Quantity_Positive", "\"Quantity\" > 0");
 
                             t.HasCheckConstraint("CK_OrderItems_UnitPrice_Positive", "CAST(\"UnitPrice\" AS NUMERIC) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ECommerce.Api.Models.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT")
+                        .IsFixedLength();
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderPaymentId")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .IsFixedLength();
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Payments_OrderId_Active")
+                        .HasFilter("\"Status\" IN (1, 2)");
+
+                    b.HasIndex("OrderId", "CreatedAtUtc");
+
+                    b.HasIndex("OrderId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("Payments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Payments_Amount_Positive", "CAST(\"Amount\" AS NUMERIC) > 0");
+
+                            t.HasCheckConstraint("CK_Payments_Currency_Valid", "length(\"Currency\") = 3 AND \"Currency\" = upper(\"Currency\")");
+
+                            t.HasCheckConstraint("CK_Payments_IdempotencyKey_Valid", "length(trim(\"IdempotencyKey\")) BETWEEN 8 AND 100");
+
+                            t.HasCheckConstraint("CK_Payments_Provider_Valid", "length(trim(\"Provider\")) BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("CK_Payments_RequestFingerprint_Valid", "length(\"RequestFingerprint\") = 64");
+
+                            t.HasCheckConstraint("CK_Payments_Result_Consistent", "(\"Status\" = 1 AND \"ProviderPaymentId\" IS NULL AND \"FailureCode\" IS NULL) OR (\"Status\" = 2 AND \"ProviderPaymentId\" IS NOT NULL AND \"FailureCode\" IS NULL) OR (\"Status\" = 3 AND \"FailureCode\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Payments_Status_Valid", "\"Status\" IN (1, 2, 3)");
                         });
                 });
 
@@ -475,6 +681,17 @@ namespace ECommerce.Api.Data.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("ECommerce.Api.Models.CustomerAddress", b =>
+                {
+                    b.HasOne("ECommerce.Api.Identity.ApplicationUser", "Customer")
+                        .WithMany("Addresses")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("ECommerce.Api.Models.Order", b =>
                 {
                     b.HasOne("ECommerce.Api.Identity.ApplicationUser", "Customer")
@@ -482,7 +699,70 @@ namespace ECommerce.Api.Data.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.OwnsOne("ECommerce.Api.Models.OrderAddressSnapshot", "ShippingAddress", b1 =>
+                        {
+                            b1.Property<int>("OrderId")
+                                .HasColumnType("INTEGER");
+
+                            b1.Property<string>("AddressLine1")
+                                .IsRequired()
+                                .HasMaxLength(300)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingAddressLine1");
+
+                            b1.Property<string>("AddressLine2")
+                                .HasMaxLength(300)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingAddressLine2");
+
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingCity");
+
+                            b1.Property<string>("CountryCode")
+                                .IsRequired()
+                                .HasMaxLength(2)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingCountryCode")
+                                .IsFixedLength();
+
+                            b1.Property<string>("District")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingDistrict");
+
+                            b1.Property<string>("PhoneNumber")
+                                .IsRequired()
+                                .HasMaxLength(30)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingPhoneNumber");
+
+                            b1.Property<string>("PostalCode")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingPostalCode");
+
+                            b1.Property<string>("RecipientFullName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("TEXT")
+                                .HasColumnName("ShippingRecipientFullName");
+
+                            b1.HasKey("OrderId");
+
+                            b1.ToTable("Orders");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId");
+                        });
+
                     b.Navigation("Customer");
+
+                    b.Navigation("ShippingAddress");
                 });
 
             modelBuilder.Entity("ECommerce.Api.Models.OrderItem", b =>
@@ -501,6 +781,17 @@ namespace ECommerce.Api.Data.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("ECommerce.Api.Models.Payment", b =>
+                {
+                    b.HasOne("ECommerce.Api.Models.Order", "Order")
+                        .WithMany("Payments")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
                 });
 
             modelBuilder.Entity("ECommerce.Api.Models.Product", b =>
@@ -578,6 +869,8 @@ namespace ECommerce.Api.Data.Migrations
 
             modelBuilder.Entity("ECommerce.Api.Identity.ApplicationUser", b =>
                 {
+                    b.Navigation("Addresses");
+
                     b.Navigation("Cart");
 
                     b.Navigation("Orders");
@@ -596,6 +889,8 @@ namespace ECommerce.Api.Data.Migrations
             modelBuilder.Entity("ECommerce.Api.Models.Order", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("ECommerce.Api.Models.Product", b =>

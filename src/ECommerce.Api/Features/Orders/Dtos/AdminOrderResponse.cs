@@ -6,5 +6,7 @@ public sealed record AdminOrderResponse(
     string CustomerEmail,
     string Status,
     decimal TotalAmount,
+    string Currency,
     DateTime CreatedAtUtc,
+    OrderAddressResponse? ShippingAddress,
     IReadOnlyList<OrderItemResponse> Items);
