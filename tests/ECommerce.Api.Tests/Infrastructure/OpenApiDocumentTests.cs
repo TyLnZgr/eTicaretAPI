@@ -282,5 +282,26 @@ public sealed class OpenApiDocumentTests
             markNotificationReadResponses.TryGetProperty("401", out _));
         Assert.True(
             markNotificationReadResponses.TryGetProperty("404", out _));
+
+        var outboxAdminResponses = paths
+            .GetProperty("/api/admin/outbox")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(outboxAdminResponses.TryGetProperty("200", out _));
+        Assert.True(outboxAdminResponses.TryGetProperty("400", out _));
+        Assert.True(outboxAdminResponses.TryGetProperty("401", out _));
+        Assert.True(outboxAdminResponses.TryGetProperty("403", out _));
+
+        var retryOutboxResponses = paths
+            .GetProperty("/api/admin/outbox/{id}/retry")
+            .GetProperty("post")
+            .GetProperty("responses");
+
+        Assert.True(retryOutboxResponses.TryGetProperty("204", out _));
+        Assert.True(retryOutboxResponses.TryGetProperty("401", out _));
+        Assert.True(retryOutboxResponses.TryGetProperty("403", out _));
+        Assert.True(retryOutboxResponses.TryGetProperty("404", out _));
+        Assert.True(retryOutboxResponses.TryGetProperty("409", out _));
     }
 }

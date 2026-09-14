@@ -3,44 +3,18 @@ namespace ECommerce.Api.Infrastructure.Outbox;
 public sealed class InProcessIntegrationEventPublisher
     : IIntegrationEventPublisher
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<InProcessIntegrationEventPublisher> _logger;
+    private readonly IIntegrationEventDispatcher _dispatcher;
 
     public InProcessIntegrationEventPublisher(
-        IServiceScopeFactory scopeFactory,
-        ILogger<InProcessIntegrationEventPublisher> logger)
+        IIntegrationEventDispatcher dispatcher)
     {
-        _scopeFactory = scopeFactory;
-        _logger = logger;
+        _dispatcher = dispatcher;
     }
 
     public async Task PublishAsync(
         OutboxEnvelope message,
         CancellationToken cancellationToken = default)
     {
-        await using var scope = _scopeFactory.CreateAsyncScope();
-
-        var handlers = scope.ServiceProvider
-            .GetServices<IIntegrationEventHandler>()
-            .Where(handler => handler.EventType == message.Type)
-            .ToArray();
-
-        if (handlers.Length == 0)
-        {
-            throw new InvalidOperationException(
-                $"No integration event handler is registered for '{message.Type}'.");
-        }
-
-        foreach (var handler in handlers)
-        {
-            await handler.HandleAsync(message, cancellationToken);
-        }
-
-        _logger.LogInformation(
-            "Integration event {EventType} with message ID {MessageId} " +
-            "was dispatched to {HandlerCount} handler(s).",
-            message.Type,
-            message.MessageId,
-            handlers.Length);
+        await _dispatcher.DispatchAsync(message, cancellationToken);
     }
 }

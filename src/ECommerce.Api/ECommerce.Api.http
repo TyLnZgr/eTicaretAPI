@@ -5,6 +5,7 @@
 @idempotencyKey = order-1-payment-attempt-1
 @paymentId = paste-payment-id-here
 @notificationId = paste-notification-id-here
+@outboxMessageId = paste-outbox-message-id-here
 
 GET {{ECommerce.Api_HostAddress}}/
 Accept: application/json
@@ -260,6 +261,17 @@ Accept: application/json
 
 PATCH {{ECommerce.Api_HostAddress}}/api/notifications/{{notificationId}}/read
 Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/admin/outbox?status=DeadLettered&page=1&pageSize=20
+Authorization: Bearer {{adminAccessToken}}
+Accept: application/json
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/admin/outbox/{{outboxMessageId}}/retry
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 

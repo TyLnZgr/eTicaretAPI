@@ -5,11 +5,14 @@ using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Notifications.IntegrationEvents;
 using ECommerce.Api.Features.Notifications.Services;
+using ECommerce.Api.Features.Operations.Outbox.Services;
 using ECommerce.Api.Features.Payments.Gateways;
 using ECommerce.Api.Features.Payments.Services;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Identity;
 using ECommerce.Api.Identity.Authorization;
+using ECommerce.Api.Infrastructure.Messaging;
+using ECommerce.Api.Infrastructure.Messaging.RabbitMq;
 using ECommerce.Api.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -37,11 +40,38 @@ builder.Services
     .Validate(
         options => options.PollingInterval >= TimeSpan.FromSeconds(1),
         "Outbox polling interval must be at least one second.")
+    .Validate(
+        options => options.MaximumAttempts is >= 1 and <= 100,
+        "Outbox maximum attempts must be between 1 and 100.")
+    .Validate(
+        options =>
+            options.LeaseDuration >= TimeSpan.FromSeconds(10) &&
+            options.LeaseDuration <= TimeSpan.FromMinutes(10),
+        "Outbox lease duration must be between 10 seconds and 10 minutes.")
+    .ValidateOnStart();
+builder.Services
+    .AddOptions<MessagingOptions>()
+    .Bind(builder.Configuration.GetSection(MessagingOptions.SectionName))
+    .Validate(
+        options => MessagingProviders.IsSupported(options.Provider),
+        "Messaging provider must be InProcess or RabbitMq.")
+    .Validate(
+        options =>
+            !string.Equals(
+                options.Provider,
+                MessagingProviders.RabbitMq,
+                StringComparison.OrdinalIgnoreCase) ||
+            IsRabbitMqConfigurationValid(options.RabbitMq),
+        "RabbitMQ configuration is invalid.")
     .ValidateOnStart();
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(
         AppPolicies.ManageOrders,
+        policy => policy.RequireRole(AppRoles.Administrator));
+
+    options.AddPolicy(
+        AppPolicies.ManageOperations,
         policy => policy.RequireRole(AppRoles.Administrator));
 
     options.AddPolicy(
@@ -73,14 +103,42 @@ builder.Services.AddScoped<IOrderService, EfCoreOrderService>();
 builder.Services.AddScoped<IOrderPlacementService, EfCoreOrderPlacementService>();
 builder.Services.AddScoped<IPaymentService, EfCorePaymentService>();
 builder.Services.AddScoped<INotificationService, EfCoreNotificationService>();
+builder.Services.AddScoped<
+    IOutboxAdministrationService,
+    EfCoreOutboxAdministrationService>();
 builder.Services.AddScoped<ICartService, EfCoreCartService>();
 builder.Services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
-builder.Services.AddSingleton<
-    IIntegrationEventPublisher,
-    InProcessIntegrationEventPublisher>();
 builder.Services.AddScoped<
     IIntegrationEventHandler,
     OrderPaidNotificationHandler>();
+builder.Services.AddSingleton<
+    IIntegrationEventDispatcher,
+    InProcessIntegrationEventDispatcher>();
+
+var messagingProvider = builder.Configuration[
+    $"{MessagingOptions.SectionName}:Provider"];
+
+if (string.Equals(
+        messagingProvider,
+        MessagingProviders.RabbitMq,
+        StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<
+        IRabbitMqConnection,
+        RabbitMqConnection>();
+    builder.Services.AddSingleton<
+        IIntegrationEventPublisher,
+        RabbitMqIntegrationEventPublisher>();
+    builder.Services.AddHostedService<
+        RabbitMqConsumerBackgroundService>();
+}
+else
+{
+    builder.Services.AddSingleton<
+        IIntegrationEventPublisher,
+        InProcessIntegrationEventPublisher>();
+}
+
 builder.Services.AddScoped<IOutboxProcessor, EfCoreOutboxProcessor>();
 builder.Services.AddHostedService<OutboxBackgroundService>();
 builder.Services.AddScoped<IdentityDataSeeder>();
@@ -126,5 +184,20 @@ app.MapGet("/", () => new
 });
 
 app.Run();
+
+static bool IsRabbitMqConfigurationValid(RabbitMqOptions options)
+{
+    return !string.IsNullOrWhiteSpace(options.HostName) &&
+        options.Port is >= 1 and <= 65535 &&
+        !string.IsNullOrWhiteSpace(options.UserName) &&
+        !string.IsNullOrWhiteSpace(options.Password) &&
+        !string.IsNullOrWhiteSpace(options.VirtualHost) &&
+        !string.IsNullOrWhiteSpace(options.Exchange) &&
+        !string.IsNullOrWhiteSpace(options.Queue) &&
+        !string.IsNullOrWhiteSpace(options.DeadLetterExchange) &&
+        !string.IsNullOrWhiteSpace(options.DeadLetterQueue) &&
+        options.PrefetchCount > 0 &&
+        options.InitialConnectionRetryDelay >= TimeSpan.FromSeconds(1);
+}
 
 public partial class Program;

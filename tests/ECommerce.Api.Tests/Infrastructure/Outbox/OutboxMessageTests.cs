@@ -26,7 +26,7 @@ public sealed class OutboxMessageTests
             markAgainAction);
 
         Assert.Equal(
-            "A processed outbox message cannot be changed.",
+            "A finalized outbox message cannot be changed.",
             exception.Message);
         Assert.Equal(1, message.AttemptCount);
     }
@@ -52,6 +52,27 @@ public sealed class OutboxMessageTests
 
         // Assert
         await Assert.ThrowsAsync<DbUpdateException>(saveAction);
+    }
+
+    [Fact]
+    public void Retry_WhenMessageIsDeadLettered_ResetsDeliveryState()
+    {
+        // Arrange
+        var now = DateTime.UtcNow;
+        var message = CreateMessage(now);
+
+        message.MarkDeadLettered(
+            "The broker is unavailable.",
+            now);
+
+        // Act
+        message.Retry(now.AddMinutes(1));
+
+        // Assert
+        Assert.Equal(0, message.AttemptCount);
+        Assert.Null(message.DeadLetteredAtUtc);
+        Assert.Null(message.LastError);
+        Assert.Equal(now.AddMinutes(1), message.NextAttemptAtUtc);
     }
 
     private static OutboxMessage CreateMessage(

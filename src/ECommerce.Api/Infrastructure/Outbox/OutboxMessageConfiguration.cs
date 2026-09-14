@@ -31,9 +31,29 @@ public sealed class OutboxMessageConfiguration
 
                 tableBuilder.HasCheckConstraint(
                     "CK_OutboxMessages_ProcessedState_Consistent",
-                    "\"ProcessedAtUtc\" IS NULL OR " +
+                    "NOT (\"ProcessedAtUtc\" IS NOT NULL AND " +
+                    "\"DeadLetteredAtUtc\" IS NOT NULL) AND " +
+                    "(\"ProcessedAtUtc\" IS NULL OR " +
                     "(\"NextAttemptAtUtc\" IS NULL AND " +
-                    "\"LastError\" IS NULL)");
+                    "\"LastError\" IS NULL AND " +
+                    "\"LockId\" IS NULL)) AND " +
+                    "(\"DeadLetteredAtUtc\" IS NULL OR " +
+                    "(\"NextAttemptAtUtc\" IS NULL AND " +
+                    "\"LockId\" IS NULL AND \"AttemptCount\" > 0))");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_OutboxMessages_Lease_Consistent",
+                    "(\"LockId\" IS NULL AND \"LockedBy\" IS NULL " +
+                    "AND \"LockedUntilUtc\" IS NULL) OR " +
+                    "(\"LockId\" IS NOT NULL AND \"LockedBy\" IS NOT NULL " +
+                    "AND \"LockedUntilUtc\" IS NOT NULL AND " +
+                    "\"ProcessedAtUtc\" IS NULL AND " +
+                    "\"DeadLetteredAtUtc\" IS NULL)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_OutboxMessages_LockedBy_Valid",
+                    "\"LockedBy\" IS NULL OR " +
+                    "length(trim(\"LockedBy\")) BETWEEN 1 AND 200");
             });
 
         builder.HasKey(message => message.Id);
@@ -58,13 +78,23 @@ public sealed class OutboxMessageConfiguration
         builder.Property(message => message.LastError)
             .HasMaxLength(OutboxMessage.MaximumErrorLength);
 
+        builder.Property(message => message.LockId)
+            .IsConcurrencyToken();
+
+        builder.Property(message => message.LockedBy)
+            .HasMaxLength(OutboxMessage.MaximumWorkerNameLength);
+
         builder.HasIndex(message => message.DeduplicationKey)
             .IsUnique();
+
+        builder.HasIndex(message => message.LockId);
 
         builder.HasIndex(message => new
         {
             message.ProcessedAtUtc,
+            message.DeadLetteredAtUtc,
             message.NextAttemptAtUtc,
+            message.LockedUntilUtc,
             message.OccurredAtUtc
         });
     }
