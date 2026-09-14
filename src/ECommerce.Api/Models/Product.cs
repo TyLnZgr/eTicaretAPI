@@ -12,4 +12,6 @@ public class Product
     public Category Category { get; set; } = null!;
     public ICollection<StockMovement> StockMovements { get; set; }
         = new List<StockMovement>();
+    public ICollection<OrderItem> OrderItems { get; set; }
+        = new List<OrderItem>();
 }

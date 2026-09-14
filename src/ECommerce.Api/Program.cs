@@ -1,5 +1,6 @@
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Categories.Services;
+using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Products.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -20,6 +21,7 @@ builder.Services.AddControllers();
 
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
+builder.Services.AddScoped<IOrderService, EfCoreOrderService>();
 
 var app = builder.Build();
 

@@ -76,6 +76,40 @@ Content-Type: application/json
 
 ###
 
+POST {{ECommerce.Api_HostAddress}}/api/orders
+Content-Type: application/json
+
+{
+  "customerEmail": "customer@example.com",
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    }
+  ]
+}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/orders/1
+Accept: application/json
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/orders?status=Pending&page=1&pageSize=20
+Accept: application/json
+
+###
+
+PATCH {{ECommerce.Api_HostAddress}}/api/orders/1/status
+Content-Type: application/json
+
+{
+  "status": "Cancelled"
+}
+
+###
+
 PUT {{ECommerce.Api_HostAddress}}/api/products/2
 Content-Type: application/json
 
