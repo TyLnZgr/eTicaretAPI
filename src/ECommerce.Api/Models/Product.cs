@@ -14,4 +14,6 @@ public class Product
         = new List<StockMovement>();
     public ICollection<OrderItem> OrderItems { get; set; }
         = new List<OrderItem>();
+    public ICollection<CartItem> CartItems { get; set; }
+        = new List<CartItem>();
 }

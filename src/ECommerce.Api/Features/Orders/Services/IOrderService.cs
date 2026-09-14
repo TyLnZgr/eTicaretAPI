@@ -12,19 +12,23 @@ public interface IOrderService
         OrderQueryParameters queryParameters,
         CancellationToken cancellationToken = default);
 
+    Task<PagedResult<AdminOrderResponse>> GetAllAsAdministratorAsync(
+        AdminOrderQueryParameters queryParameters,
+        CancellationToken cancellationToken = default);
+
     Task<Order?> GetByIdAsync(
         int id,
         Guid customerId,
         CancellationToken cancellationToken = default);
 
-    Task<OrderCreationResult> CreateAsync(
-        Guid customerId,
-        IReadOnlyList<CreateOrderItemRequest> items,
-        CancellationToken cancellationToken = default);
-
     Task<OrderStatusUpdateResult> UpdateStatusAsync(
         int id,
         Guid customerId,
+        OrderStatus newStatus,
+        CancellationToken cancellationToken = default);
+
+    Task<OrderStatusUpdateResult> UpdateStatusAsAdministratorAsync(
+        int id,
         OrderStatus newStatus,
         CancellationToken cancellationToken = default);
 }

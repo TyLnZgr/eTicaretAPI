@@ -21,7 +21,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -71,7 +71,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(
             _ => Task.CompletedTask);
@@ -100,7 +100,7 @@ public sealed class CategoryEndpointTests
         Assert.NotNull(response.Headers.Location);
         Assert.Equal(
             $"/api/categories/{category.Id}",
-            response.Headers.Location.OriginalString);
+            response.Headers.Location.AbsolutePath);
 
         using var getResponse =
             await client.GetAsync($"/api/categories/{category.Id}");
@@ -120,7 +120,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var request = new CreateCategoryRequest
         {
@@ -144,7 +144,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var categoryId = 0;
 
@@ -199,7 +199,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var categoryId = 0;
 
@@ -241,7 +241,7 @@ public sealed class CategoryEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var categoryId = 0;
 

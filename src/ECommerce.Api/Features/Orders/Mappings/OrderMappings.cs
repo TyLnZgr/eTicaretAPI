@@ -7,7 +7,30 @@ public static class OrderMappings
 {
     public static OrderResponse ToResponse(this Order order)
     {
-        var items = order.Items
+        return new OrderResponse(
+            order.Id,
+            order.CustomerEmail,
+            order.Status.ToString(),
+            order.TotalAmount,
+            order.CreatedAtUtc,
+            MapItems(order));
+    }
+
+    public static AdminOrderResponse ToAdminResponse(this Order order)
+    {
+        return new AdminOrderResponse(
+            order.Id,
+            order.CustomerId,
+            order.CustomerEmail,
+            order.Status.ToString(),
+            order.TotalAmount,
+            order.CreatedAtUtc,
+            MapItems(order));
+    }
+
+    private static OrderItemResponse[] MapItems(Order order)
+    {
+        return order.Items
             .OrderBy(item => item.Id)
             .Select(item => new OrderItemResponse(
                 item.Id,
@@ -17,13 +40,5 @@ public static class OrderMappings
                 item.Quantity,
                 item.LineTotal))
             .ToArray();
-
-        return new OrderResponse(
-            order.Id,
-            order.CustomerEmail,
-            order.Status.ToString(),
-            order.TotalAmount,
-            order.CreatedAtUtc,
-            items);
     }
 }

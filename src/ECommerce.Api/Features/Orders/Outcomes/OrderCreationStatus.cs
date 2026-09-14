@@ -7,5 +7,7 @@ public enum OrderCreationStatus
     CustomerNotFound,
     ProductNotFound,
     ProductInactive,
-    InsufficientStock
+    InsufficientStock,
+    CartEmpty,
+    ConcurrencyConflict
 }

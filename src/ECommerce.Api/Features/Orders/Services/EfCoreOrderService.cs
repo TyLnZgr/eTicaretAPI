@@ -31,51 +31,73 @@ public sealed class EfCoreOrderService : IOrderService
             .AsNoTracking()
             .Where(order => order.CustomerId == customerId);
 
-        if (!string.IsNullOrWhiteSpace(queryParameters.Status) &&
-            OrderRequestValidator.TryParseStatus(
-                queryParameters.Status,
-                out var status))
-        {
-            query = query.Where(order => order.Status == status);
-        }
+        query = ApplyOrderFilters(
+            query,
+            queryParameters.Status,
+            queryParameters.CreatedFrom,
+            queryParameters.CreatedTo);
 
-        if (queryParameters.CreatedFrom.HasValue)
-        {
-            var createdFromUtc =
-                queryParameters.CreatedFrom.Value.UtcDateTime;
-
-            query = query.Where(order =>
-                order.CreatedAtUtc >= createdFromUtc);
-        }
-
-        if (queryParameters.CreatedTo.HasValue)
-        {
-            var createdToUtc =
-                queryParameters.CreatedTo.Value.UtcDateTime;
-
-            query = query.Where(order =>
-                order.CreatedAtUtc <= createdToUtc);
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
         var page = queryParameters.Page ?? 1;
         var pageSize = queryParameters.PageSize ?? 20;
-        var skip = (page - 1) * pageSize;
-
-        var orders = await query
-            .OrderByDescending(order => order.CreatedAtUtc)
-            .ThenByDescending(order => order.Id)
-            .Skip(skip)
-            .Take(pageSize)
-            .Include(order => order.Items)
-            .AsSplitQuery()
-            .ToListAsync(cancellationToken);
+        var (orders, totalCount) = await LoadOrderPageAsync(
+            query,
+            page,
+            pageSize,
+            cancellationToken);
 
         var items = orders
             .Select(order => order.ToResponse())
             .ToArray();
 
         return new PagedResult<OrderResponse>(
+            items,
+            page,
+            pageSize,
+            totalCount);
+    }
+
+    public async Task<PagedResult<AdminOrderResponse>>
+        GetAllAsAdministratorAsync(
+            AdminOrderQueryParameters queryParameters,
+            CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Orders.AsNoTracking();
+
+        if (queryParameters.CustomerId.HasValue)
+        {
+            query = query.Where(order =>
+                order.CustomerId == queryParameters.CustomerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryParameters.CustomerEmail))
+        {
+            var customerEmail = queryParameters.CustomerEmail
+                .Trim()
+                .ToLowerInvariant();
+
+            query = query.Where(order =>
+                order.CustomerEmail == customerEmail);
+        }
+
+        query = ApplyOrderFilters(
+            query,
+            queryParameters.Status,
+            queryParameters.CreatedFrom,
+            queryParameters.CreatedTo);
+
+        var page = queryParameters.Page ?? 1;
+        var pageSize = queryParameters.PageSize ?? 20;
+        var (orders, totalCount) = await LoadOrderPageAsync(
+            query,
+            page,
+            pageSize,
+            cancellationToken);
+
+        var items = orders
+            .Select(order => order.ToAdminResponse())
+            .ToArray();
+
+        return new PagedResult<AdminOrderResponse>(
             items,
             page,
             pageSize,
@@ -97,204 +119,54 @@ public sealed class EfCoreOrderService : IOrderService
                 cancellationToken);
     }
 
-    public async Task<OrderCreationResult> CreateAsync(
-        Guid customerId,
-        IReadOnlyList<CreateOrderItemRequest> items,
-        CancellationToken cancellationToken = default)
-    {
-        if (customerId == Guid.Empty ||
-            items is null ||
-            items.Count == 0 ||
-            items.Count > 100 ||
-            items.Any(item =>
-                item.ProductId <= 0 ||
-                item.Quantity <= 0 ||
-                item.Quantity > 1_000) ||
-            items.Select(item => item.ProductId).Distinct().Count() != items.Count)
-        {
-            return new OrderCreationResult(
-                OrderCreationStatus.InvalidRequest);
-        }
-
-        var requestedItems = items
-            .OrderBy(item => item.ProductId)
-            .ToArray();
-
-        var productIds = requestedItems
-            .Select(item => item.ProductId)
-            .ToArray();
-
-        await using var transaction =
-            await _dbContext.Database.BeginTransactionAsync(
-                cancellationToken);
-
-        var customerEmail = await _dbContext.Users
-            .AsNoTracking()
-            .Where(customer => customer.Id == customerId)
-            .Select(customer => customer.Email)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        if (string.IsNullOrWhiteSpace(customerEmail))
-        {
-            await transaction.RollbackAsync(cancellationToken);
-
-            return new OrderCreationResult(
-                OrderCreationStatus.CustomerNotFound);
-        }
-
-        var products = await _dbContext.Products
-            .AsNoTracking()
-            .Where(product => productIds.Contains(product.Id))
-            .ToDictionaryAsync(
-                product => product.Id,
-                cancellationToken);
-
-        foreach (var requestedItem in requestedItems)
-        {
-            if (!products.TryGetValue(
-                    requestedItem.ProductId,
-                    out var product))
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                return new OrderCreationResult(
-                    OrderCreationStatus.ProductNotFound,
-                    ProductId: requestedItem.ProductId);
-            }
-
-            if (!product.IsActive)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                return new OrderCreationResult(
-                    OrderCreationStatus.ProductInactive,
-                    ProductId: product.Id);
-            }
-
-            if (product.StockQuantity < requestedItem.Quantity)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-
-                return new OrderCreationResult(
-                    OrderCreationStatus.InsufficientStock,
-                    ProductId: product.Id);
-            }
-        }
-
-        var order = new Order
-        {
-            CustomerId = customerId,
-            CustomerEmail = customerEmail.Trim().ToLowerInvariant(),
-            CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-        };
-
-        foreach (var requestedItem in requestedItems)
-        {
-            var product = products[requestedItem.ProductId];
-            var lineTotal = product.Price * requestedItem.Quantity;
-
-            order.Items.Add(new OrderItem
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                UnitPrice = product.Price,
-                Quantity = requestedItem.Quantity,
-                LineTotal = lineTotal
-            });
-
-            order.TotalAmount += lineTotal;
-        }
-
-        var stockMovements = new List<StockMovement>();
-
-        foreach (var requestedItem in requestedItems)
-        {
-            var affectedRows = await _dbContext.Products
-                .Where(product => product.Id == requestedItem.ProductId)
-                .Where(product => product.IsActive)
-                .Where(product =>
-                    product.StockQuantity >= requestedItem.Quantity)
-                .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(
-                        product => product.StockQuantity,
-                        product =>
-                            product.StockQuantity - requestedItem.Quantity),
-                    cancellationToken);
-
-            if (affectedRows == 0)
-            {
-                var currentProduct = await _dbContext.Products
-                    .AsNoTracking()
-                    .Where(product =>
-                        product.Id == requestedItem.ProductId)
-                    .Select(product => new
-                    {
-                        product.IsActive,
-                        product.StockQuantity
-                    })
-                    .SingleOrDefaultAsync(cancellationToken);
-
-                await transaction.RollbackAsync(cancellationToken);
-
-                if (currentProduct is null)
-                {
-                    return new OrderCreationResult(
-                        OrderCreationStatus.ProductNotFound,
-                        ProductId: requestedItem.ProductId);
-                }
-
-                return new OrderCreationResult(
-                    currentProduct.IsActive
-                        ? OrderCreationStatus.InsufficientStock
-                        : OrderCreationStatus.ProductInactive,
-                    ProductId: requestedItem.ProductId);
-            }
-
-            var stockQuantityAfter = await _dbContext.Products
-                .AsNoTracking()
-                .Where(product => product.Id == requestedItem.ProductId)
-                .Select(product => product.StockQuantity)
-                .SingleAsync(cancellationToken);
-
-            stockMovements.Add(new StockMovement
-            {
-                ProductId = requestedItem.ProductId,
-                QuantityDelta = -requestedItem.Quantity,
-                StockQuantityAfter = stockQuantityAfter,
-                Reason = "Order placement",
-                CreatedAtUtc = order.CreatedAtUtc
-            });
-        }
-
-        _dbContext.Orders.Add(order);
-        _dbContext.StockMovements.AddRange(stockMovements);
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        return new OrderCreationResult(
-            OrderCreationStatus.Success,
-            order);
-    }
-
-    public async Task<OrderStatusUpdateResult> UpdateStatusAsync(
+    public Task<OrderStatusUpdateResult> UpdateStatusAsync(
         int id,
         Guid customerId,
         OrderStatus newStatus,
         CancellationToken cancellationToken = default)
     {
+        return UpdateStatusCoreAsync(
+            id,
+            customerId,
+            newStatus,
+            cancellationToken);
+    }
+
+    public Task<OrderStatusUpdateResult> UpdateStatusAsAdministratorAsync(
+        int id,
+        OrderStatus newStatus,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateStatusCoreAsync(
+            id,
+            customerId: null,
+            newStatus,
+            cancellationToken);
+    }
+
+    private async Task<OrderStatusUpdateResult> UpdateStatusCoreAsync(
+        int id,
+        Guid? customerId,
+        OrderStatus newStatus,
+        CancellationToken cancellationToken)
+    {
         await using var transaction =
             await _dbContext.Database.BeginTransactionAsync(
                 cancellationToken);
 
-        var order = await _dbContext.Orders
+        var orderQuery = _dbContext.Orders
             .AsNoTracking()
             .Include(candidate => candidate.Items)
-            .SingleOrDefaultAsync(
-                candidate =>
-                    candidate.Id == id &&
-                    candidate.CustomerId == customerId,
-                cancellationToken);
+            .Where(candidate => candidate.Id == id);
+
+        if (customerId.HasValue)
+        {
+            orderQuery = orderQuery.Where(candidate =>
+                candidate.CustomerId == customerId.Value);
+        }
+
+        var order = await orderQuery.SingleOrDefaultAsync(
+            cancellationToken);
 
         if (order is null)
         {
@@ -313,10 +185,17 @@ public sealed class EfCoreOrderService : IOrderService
                 CurrentStatus: order.Status);
         }
 
-        var affectedOrders = await _dbContext.Orders
+        var updateQuery = _dbContext.Orders
             .Where(candidate => candidate.Id == id)
-            .Where(candidate => candidate.CustomerId == customerId)
-            .Where(candidate => candidate.Status == order.Status)
+            .Where(candidate => candidate.Status == order.Status);
+
+        if (customerId.HasValue)
+        {
+            updateQuery = updateQuery.Where(candidate =>
+                candidate.CustomerId == customerId.Value);
+        }
+
+        var affectedOrders = await updateQuery
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(
                     candidate => candidate.Status,
@@ -396,13 +275,77 @@ public sealed class EfCoreOrderService : IOrderService
 
         await transaction.CommitAsync(cancellationToken);
 
-        var updatedOrder = await GetByIdAsync(
-            id,
-            customerId,
+        var updatedOrderQuery = _dbContext.Orders
+            .AsNoTracking()
+            .Include(candidate => candidate.Items)
+            .Where(candidate => candidate.Id == id);
+
+        if (customerId.HasValue)
+        {
+            updatedOrderQuery = updatedOrderQuery.Where(candidate =>
+                candidate.CustomerId == customerId.Value);
+        }
+
+        var updatedOrder = await updatedOrderQuery.SingleOrDefaultAsync(
             cancellationToken);
 
         return new OrderStatusUpdateResult(
             OrderStatusUpdateStatus.Success,
             updatedOrder);
+    }
+
+    private static IQueryable<Order> ApplyOrderFilters(
+        IQueryable<Order> query,
+        string? statusValue,
+        DateTimeOffset? createdFrom,
+        DateTimeOffset? createdTo)
+    {
+        if (!string.IsNullOrWhiteSpace(statusValue) &&
+            OrderRequestValidator.TryParseStatus(
+                statusValue,
+                out var status))
+        {
+            query = query.Where(order => order.Status == status);
+        }
+
+        if (createdFrom.HasValue)
+        {
+            var createdFromUtc = createdFrom.Value.UtcDateTime;
+
+            query = query.Where(order =>
+                order.CreatedAtUtc >= createdFromUtc);
+        }
+
+        if (createdTo.HasValue)
+        {
+            var createdToUtc = createdTo.Value.UtcDateTime;
+
+            query = query.Where(order =>
+                order.CreatedAtUtc <= createdToUtc);
+        }
+
+        return query;
+    }
+
+    private static async Task<(List<Order> Orders, int TotalCount)>
+        LoadOrderPageAsync(
+            IQueryable<Order> query,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken)
+    {
+        var totalCount = await query.CountAsync(cancellationToken);
+        var skip = (page - 1) * pageSize;
+
+        var orders = await query
+            .OrderByDescending(order => order.CreatedAtUtc)
+            .ThenByDescending(order => order.Id)
+            .Skip(skip)
+            .Take(pageSize)
+            .Include(order => order.Items)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+
+        return (orders, totalCount);
     }
 }

@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Models;
 
@@ -70,10 +71,60 @@ public static class OrderRequestValidator
     public static Dictionary<string, string[]> ValidateQuery(
         OrderQueryParameters queryParameters)
     {
+        return ValidateQueryCore(
+            queryParameters.Status,
+            queryParameters.CreatedFrom,
+            queryParameters.CreatedTo,
+            queryParameters.Page,
+            queryParameters.PageSize);
+    }
+
+    public static Dictionary<string, string[]> ValidateAdminQuery(
+        AdminOrderQueryParameters queryParameters)
+    {
+        var errors = ValidateQueryCore(
+            queryParameters.Status,
+            queryParameters.CreatedFrom,
+            queryParameters.CreatedTo,
+            queryParameters.Page,
+            queryParameters.PageSize);
+
+        if (queryParameters.CustomerId == Guid.Empty)
+        {
+            errors["customerId"] = new[]
+            {
+                "Customer ID cannot be an empty GUID."
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(queryParameters.CustomerEmail))
+        {
+            var email = queryParameters.CustomerEmail.Trim();
+
+            if (email.Length > 254 ||
+                !MailAddress.TryCreate(email, out _))
+            {
+                errors["customerEmail"] = new[]
+                {
+                    "Customer email filter must be a valid email address."
+                };
+            }
+        }
+
+        return errors;
+    }
+
+    private static Dictionary<string, string[]> ValidateQueryCore(
+        string? statusValue,
+        DateTimeOffset? createdFrom,
+        DateTimeOffset? createdTo,
+        int? pageValue,
+        int? pageSizeValue)
+    {
         var errors = new Dictionary<string, string[]>();
 
-        if (!string.IsNullOrWhiteSpace(queryParameters.Status) &&
-            !TryParseStatus(queryParameters.Status, out _))
+        if (!string.IsNullOrWhiteSpace(statusValue) &&
+            !TryParseStatus(statusValue, out _))
         {
             errors["status"] = new[]
             {
@@ -81,9 +132,9 @@ public static class OrderRequestValidator
             };
         }
 
-        if (queryParameters.CreatedFrom.HasValue &&
-            queryParameters.CreatedTo.HasValue &&
-            queryParameters.CreatedFrom.Value > queryParameters.CreatedTo.Value)
+        if (createdFrom.HasValue &&
+            createdTo.HasValue &&
+            createdFrom.Value > createdTo.Value)
         {
             errors["createdRange"] = new[]
             {
@@ -91,8 +142,8 @@ public static class OrderRequestValidator
             };
         }
 
-        var page = queryParameters.Page ?? 1;
-        var pageSize = queryParameters.PageSize ?? 20;
+        var page = pageValue ?? 1;
+        var pageSize = pageSizeValue ?? 20;
 
         if (page < 1)
         {

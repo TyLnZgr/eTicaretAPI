@@ -104,7 +104,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         // Act
         using var response =
@@ -122,7 +122,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -208,7 +208,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(
             _ => Task.CompletedTask);
@@ -230,7 +230,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var categoryId = 0;
 
@@ -279,7 +279,7 @@ public sealed class ProductEndpointTests
         Assert.NotNull(response.Headers.Location);
         Assert.Equal(
             $"/api/products/{product.Id}",
-            response.Headers.Location.OriginalString);
+            response.Headers.Location.AbsolutePath);
 
         using var getResponse =
             await client.GetAsync($"/api/products/{product.Id}");
@@ -314,7 +314,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(
             _ => Task.CompletedTask);
@@ -352,7 +352,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var request = new CreateProductRequest
         {
@@ -379,7 +379,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
         var categoryId = 0;
@@ -452,7 +452,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
 
@@ -521,7 +521,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var request = new AdjustProductStockRequest
         {
@@ -546,7 +546,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var request = new AdjustProductStockRequest
         {
@@ -571,7 +571,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(
             _ => Task.CompletedTask);
@@ -600,7 +600,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
 
@@ -658,7 +658,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
 
@@ -730,7 +730,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         await factory.SeedDatabaseAsync(
             _ => Task.CompletedTask);
@@ -752,7 +752,7 @@ public sealed class ProductEndpointTests
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
 

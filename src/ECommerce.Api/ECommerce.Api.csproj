@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>ECommerce.Api-a2d52cc3-9c6a-4c23-b30d-3efc87a626a1</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

@@ -4,6 +4,8 @@ using ECommerce.Api.Features.Products.Mappings;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Features.Products.Validation;
+using ECommerce.Api.Identity.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce.Api.Features.Products.Controllers;
@@ -73,6 +75,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpGet("{id:int}/stock-movements", Name = "GetProductStockMovements")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("List product stock movements")]
     [EndpointDescription(
         "Returns the product's stock movement history, newest first.")]
@@ -81,6 +84,8 @@ public sealed class ProductsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<StockMovementResponse>>>
         GetStockMovementsAsync(
             [FromRoute] int id,
@@ -102,6 +107,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost(Name = "CreateProduct")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Create a product")]
     [ProducesResponseType<ProductResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(
@@ -113,6 +119,8 @@ public sealed class ProductsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ProductResponse>> CreateAsync(
         [FromBody] CreateProductRequest request,
         CancellationToken cancellationToken)
@@ -151,13 +159,14 @@ public sealed class ProductsController : ControllerBase
 
         var response = result.Product.ToResponse();
 
-        return CreatedAtAction(
-            nameof(GetByIdAsync),
+        return CreatedAtRoute(
+            "GetProductById",
             new { id = result.Product.Id },
             response);
     }
 
     [HttpPut("{id:int}", Name = "UpdateProduct")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Update a product")]
     [ProducesResponseType<ProductResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(
@@ -169,6 +178,8 @@ public sealed class ProductsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<ProductResponse>> UpdateAsync(
         [FromRoute] int id,
         [FromBody] UpdateProductRequest request,
@@ -218,6 +229,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPatch("{id:int}/stock", Name = "AdjustProductStock")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Adjust product stock")]
     [EndpointDescription(
         "Adds or removes stock and records the reason as a movement.")]
@@ -234,6 +246,8 @@ public sealed class ProductsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> AdjustStockAsync(
         [FromRoute] int id,
         [FromBody] AdjustProductStockRequest request,
@@ -266,23 +280,23 @@ public sealed class ProductsController : ControllerBase
                 ValidationProblem(
                     new ValidationProblemDetails(
                         new Dictionary<string, string[]>
-                    {
-                        ["quantityDelta"] = new[]
+                        {
+                            ["quantityDelta"] = new[]
                         {
                             "Quantity delta must be different from zero."
                         }
-                    })),
+                        })),
 
             ProductStockAdjustmentStatus.InvalidReason =>
                 ValidationProblem(
                     new ValidationProblemDetails(
                         new Dictionary<string, string[]>
-                    {
-                        ["reason"] = new[]
+                        {
+                            ["reason"] = new[]
                         {
                             "Stock movement reason must be between 1 and 200 characters."
                         }
-                    })),
+                        })),
 
             ProductStockAdjustmentStatus.InsufficientStock => Problem(
                 detail: "The stock adjustment would result in a negative quantity.",
@@ -302,11 +316,14 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id:int}", Name = "DeleteProduct")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Delete a product")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteAsync(
         [FromRoute] int id,
         CancellationToken cancellationToken)

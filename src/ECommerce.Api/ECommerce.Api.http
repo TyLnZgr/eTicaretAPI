@@ -1,6 +1,7 @@
 @ECommerce.Api_HostAddress = http://localhost:5080
 @accessToken = paste-access-token-here
 @refreshToken = paste-refresh-token-here
+@adminAccessToken = paste-admin-access-token-here
 
 GET {{ECommerce.Api_HostAddress}}/
 Accept: application/json
@@ -42,6 +43,37 @@ Accept: application/json
 
 ###
 
+GET {{ECommerce.Api_HostAddress}}/api/cart
+Authorization: Bearer {{accessToken}}
+Accept: application/json
+
+###
+
+PUT {{ECommerce.Api_HostAddress}}/api/cart/items/1
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "quantity": 2
+}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/cart/checkout
+Authorization: Bearer {{accessToken}}
+
+###
+
+DELETE {{ECommerce.Api_HostAddress}}/api/cart/items/1
+Authorization: Bearer {{accessToken}}
+
+###
+
+DELETE {{ECommerce.Api_HostAddress}}/api/cart
+Authorization: Bearer {{accessToken}}
+
+###
+
 GET {{ECommerce.Api_HostAddress}}/api/categories
 Accept: application/json
 
@@ -54,6 +86,7 @@ Accept: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/categories
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Electronics",
@@ -64,6 +97,7 @@ Content-Type: application/json
 
 PUT {{ECommerce.Api_HostAddress}}/api/categories/2
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Consumer Electronics",
@@ -73,10 +107,12 @@ Content-Type: application/json
 ###
 
 DELETE {{ECommerce.Api_HostAddress}}/api/categories/1
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 
 DELETE {{ECommerce.Api_HostAddress}}/api/categories/999
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 
@@ -102,6 +138,7 @@ Accept: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/products
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "USB-C Hub",
@@ -150,8 +187,31 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
+PATCH {{ECommerce.Api_HostAddress}}/api/admin/orders/1/status
+Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+{
+  "status": "Paid"
+}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/admin/orders?status=Pending&page=1&pageSize=20
+Accept: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/admin/orders?customerEmail=customer@example.com
+Accept: application/json
+Authorization: Bearer {{adminAccessToken}}
+
+###
+
 PUT {{ECommerce.Api_HostAddress}}/api/products/2
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Ergonomic Wireless Mouse",
@@ -164,6 +224,7 @@ Content-Type: application/json
 
 PUT {{ECommerce.Api_HostAddress}}/api/products/999
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Unknown Product",
@@ -176,6 +237,7 @@ Content-Type: application/json
 
 PATCH {{ECommerce.Api_HostAddress}}/api/products/2/stock
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "quantityDelta": -2,
@@ -186,19 +248,23 @@ Content-Type: application/json
 
 GET {{ECommerce.Api_HostAddress}}/api/products/2/stock-movements
 Accept: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 
 DELETE {{ECommerce.Api_HostAddress}}/api/products/3
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 
 DELETE {{ECommerce.Api_HostAddress}}/api/products/999
+Authorization: Bearer {{adminAccessToken}}
 
 ###
 
 POST {{ECommerce.Api_HostAddress}}/api/products
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": " ",
@@ -212,6 +278,7 @@ Content-Type: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/products
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Invalid Price Product",
@@ -225,6 +292,7 @@ Content-Type: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/products
 Content-Type: application/json
+Authorization: Bearer {{adminAccessToken}}
 
 {
   "name": "Invalid Stock Product",

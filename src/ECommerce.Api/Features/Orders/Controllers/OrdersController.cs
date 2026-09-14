@@ -18,10 +18,14 @@ namespace ECommerce.Api.Features.Orders.Controllers;
 public sealed class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly IOrderPlacementService _orderPlacementService;
 
-    public OrdersController(IOrderService orderService)
+    public OrdersController(
+        IOrderService orderService,
+        IOrderPlacementService orderPlacementService)
     {
         _orderService = orderService;
+        _orderPlacementService = orderPlacementService;
     }
 
     [HttpGet(Name = "GetOrders")]
@@ -126,7 +130,7 @@ public sealed class OrdersController : ControllerBase
                 new ValidationProblemDetails(errors));
         }
 
-        var result = await _orderService.CreateAsync(
+        var result = await _orderPlacementService.CreateAsync(
             customerId,
             request.Items,
             cancellationToken);
@@ -183,8 +187,8 @@ public sealed class OrdersController : ControllerBase
 
         var response = result.Order.ToResponse();
 
-        return CreatedAtAction(
-            nameof(GetByIdAsync),
+        return CreatedAtRoute(
+            "GetOrderById",
             new { id = result.Order.Id },
             response);
     }

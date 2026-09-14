@@ -85,6 +85,10 @@ public sealed class OpenApiDocumentTests
             adjustStockResponses.TryGetProperty("404", out _));
         Assert.True(
             adjustStockResponses.TryGetProperty("409", out _));
+        Assert.True(
+            adjustStockResponses.TryGetProperty("401", out _));
+        Assert.True(
+            adjustStockResponses.TryGetProperty("403", out _));
 
         var stockMovementResponses = paths
             .GetProperty("/api/products/{id}/stock-movements")
@@ -95,6 +99,10 @@ public sealed class OpenApiDocumentTests
             stockMovementResponses.TryGetProperty("200", out _));
         Assert.True(
             stockMovementResponses.TryGetProperty("404", out _));
+        Assert.True(
+            stockMovementResponses.TryGetProperty("401", out _));
+        Assert.True(
+            stockMovementResponses.TryGetProperty("403", out _));
 
         var deleteCategoryResponses = paths
             .GetProperty("/api/categories/{id}")
@@ -107,5 +115,63 @@ public sealed class OpenApiDocumentTests
             deleteCategoryResponses.TryGetProperty("404", out _));
         Assert.True(
             deleteCategoryResponses.TryGetProperty("409", out _));
+        Assert.True(
+            deleteCategoryResponses.TryGetProperty("401", out _));
+        Assert.True(
+            deleteCategoryResponses.TryGetProperty("403", out _));
+
+        var adminOrderResponses = paths
+            .GetProperty("/api/admin/orders")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(
+            adminOrderResponses.TryGetProperty("200", out _));
+        Assert.True(
+            adminOrderResponses.TryGetProperty("400", out _));
+        Assert.True(
+            adminOrderResponses.TryGetProperty("401", out _));
+        Assert.True(
+            adminOrderResponses.TryGetProperty("403", out _));
+
+        var cartResponses = paths
+            .GetProperty("/api/cart")
+            .GetProperty("get")
+            .GetProperty("responses");
+
+        Assert.True(cartResponses.TryGetProperty("200", out _));
+        Assert.True(cartResponses.TryGetProperty("401", out _));
+
+        var setCartItemResponses = paths
+            .GetProperty("/api/cart/items/{productId}")
+            .GetProperty("put")
+            .GetProperty("responses");
+
+        Assert.True(
+            setCartItemResponses.TryGetProperty("200", out _));
+        Assert.True(
+            setCartItemResponses.TryGetProperty("400", out _));
+        Assert.True(
+            setCartItemResponses.TryGetProperty("401", out _));
+        Assert.True(
+            setCartItemResponses.TryGetProperty("404", out _));
+        Assert.True(
+            setCartItemResponses.TryGetProperty("409", out _));
+
+        var checkoutCartResponses = paths
+            .GetProperty("/api/cart/checkout")
+            .GetProperty("post")
+            .GetProperty("responses");
+
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("201", out _));
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("400", out _));
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("401", out _));
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("404", out _));
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("409", out _));
     }
 }

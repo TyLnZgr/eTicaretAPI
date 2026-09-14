@@ -3,6 +3,8 @@ using ECommerce.Api.Features.Categories.Mappings;
 using ECommerce.Api.Features.Categories.Outcomes;
 using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Categories.Validation;
+using ECommerce.Api.Identity.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce.Api.Features.Categories.Controllers;
@@ -60,11 +62,14 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpPost(Name = "CreateCategory")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Create a category")]
     [ProducesResponseType<CategoryResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(
         StatusCodes.Status400BadRequest,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CategoryResponse>> CreateAsync(
         [FromBody] CreateCategoryRequest request,
         CancellationToken cancellationToken)
@@ -84,13 +89,14 @@ public sealed class CategoriesController : ControllerBase
 
         var response = category.ToResponse();
 
-        return CreatedAtAction(
-            nameof(GetByIdAsync),
+        return CreatedAtRoute(
+            "GetCategoryById",
             new { id = category.Id },
             response);
     }
 
     [HttpPut("{id:int}", Name = "UpdateCategory")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Update a category")]
     [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(
@@ -99,6 +105,8 @@ public sealed class CategoriesController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CategoryResponse>> UpdateAsync(
         [FromRoute] int id,
         [FromBody] UpdateCategoryRequest request,
@@ -130,6 +138,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpDelete("{id:int}", Name = "DeleteCategory")]
+    [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Delete a category")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(
@@ -141,6 +150,8 @@ public sealed class CategoriesController : ControllerBase
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteAsync(
         [FromRoute] int id,
         CancellationToken cancellationToken)

@@ -1,8 +1,10 @@
 using ECommerce.Api.Data;
+using ECommerce.Api.Features.Carts.Services;
 using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Api.Identity;
+using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -20,7 +22,16 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddControllers();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        AppPolicies.ManageOrders,
+        policy => policy.RequireRole(AppRoles.Administrator));
+
+    options.AddPolicy(
+        AppPolicies.ManageCatalog,
+        policy => policy.RequireRole(AppRoles.Administrator));
+});
 
 builder.Services
     .AddIdentityApiEndpoints<ApplicationUser>(options =>
@@ -42,8 +53,21 @@ builder.Services
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
 builder.Services.AddScoped<IOrderService, EfCoreOrderService>();
+builder.Services.AddScoped<IOrderPlacementService, EfCoreOrderPlacementService>();
+builder.Services.AddScoped<ICartService, EfCoreCartService>();
+builder.Services.AddScoped<IdentityDataSeeder>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    await using var scope = app.Services.CreateAsyncScope();
+
+    var identityDataSeeder = scope.ServiceProvider
+        .GetRequiredService<IdentityDataSeeder>();
+
+    await identityDataSeeder.SeedAsync();
+}
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
