@@ -40,9 +40,14 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.CreatedAtUtc)
             .IsRequired();
 
+        builder.HasOne(order => order.Customer)
+            .WithMany(customer => customer.Orders)
+            .HasForeignKey(order => order.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(order => new
         {
-            order.CustomerEmail,
+            order.CustomerId,
             order.CreatedAtUtc
         });
     }

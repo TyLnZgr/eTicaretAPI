@@ -1,9 +1,13 @@
+using ECommerce.Api.Identity;
 using ECommerce.Api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Data;
 
-public class ECommerceDbContext : DbContext
+public class ECommerceDbContext
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public ECommerceDbContext(DbContextOptions<ECommerceDbContext> options) : base(options)
     {

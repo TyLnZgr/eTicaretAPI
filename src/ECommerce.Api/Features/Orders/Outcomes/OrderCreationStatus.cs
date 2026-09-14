@@ -4,6 +4,7 @@ public enum OrderCreationStatus
 {
     Success,
     InvalidRequest,
+    CustomerNotFound,
     ProductNotFound,
     ProductInactive,
     InsufficientStock

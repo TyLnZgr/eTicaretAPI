@@ -2,6 +2,8 @@ using ECommerce.Api.Data;
 using ECommerce.Api.Features.Categories.Services;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Products.Services;
+using ECommerce.Api.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -18,6 +20,24 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddControllers();
+builder.Services.AddAuthorization();
+
+builder.Services
+    .AddIdentityApiEndpoints<ApplicationUser>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+
+        options.Password.RequiredLength = 8;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    })
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<ECommerceDbContext>();
 
 builder.Services.AddScoped<IProductService, EfCoreProductService>();
 builder.Services.AddScoped<ICategoryService, EfCoreCategoryService>();
@@ -27,7 +47,14 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
+
+app.MapGroup("/api/auth")
+    .WithTags("Authentication")
+    .MapIdentityApi<ApplicationUser>();
 
 if (app.Environment.IsDevelopment())
 {

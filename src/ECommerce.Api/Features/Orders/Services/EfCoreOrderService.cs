@@ -23,20 +23,13 @@ public sealed class EfCoreOrderService : IOrderService
     }
 
     public async Task<PagedResult<OrderResponse>> GetAllAsync(
+        Guid customerId,
         OrderQueryParameters queryParameters,
         CancellationToken cancellationToken = default)
     {
-        var query = _dbContext.Orders.AsNoTracking();
-
-        if (!string.IsNullOrWhiteSpace(queryParameters.CustomerEmail))
-        {
-            var customerEmail = queryParameters.CustomerEmail
-                .Trim()
-                .ToLowerInvariant();
-
-            query = query.Where(order =>
-                order.CustomerEmail == customerEmail);
-        }
+        var query = _dbContext.Orders
+            .AsNoTracking()
+            .Where(order => order.CustomerId == customerId);
 
         if (!string.IsNullOrWhiteSpace(queryParameters.Status) &&
             OrderRequestValidator.TryParseStatus(
@@ -91,23 +84,25 @@ public sealed class EfCoreOrderService : IOrderService
 
     public async Task<Order?> GetByIdAsync(
         int id,
+        Guid customerId,
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Orders
             .AsNoTracking()
             .Include(order => order.Items)
             .SingleOrDefaultAsync(
-                order => order.Id == id,
+                order =>
+                    order.Id == id &&
+                    order.CustomerId == customerId,
                 cancellationToken);
     }
 
     public async Task<OrderCreationResult> CreateAsync(
-        string customerEmail,
+        Guid customerId,
         IReadOnlyList<CreateOrderItemRequest> items,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(customerEmail) ||
-            customerEmail.Trim().Length > 254 ||
+        if (customerId == Guid.Empty ||
             items is null ||
             items.Count == 0 ||
             items.Count > 100 ||
@@ -132,6 +127,20 @@ public sealed class EfCoreOrderService : IOrderService
         await using var transaction =
             await _dbContext.Database.BeginTransactionAsync(
                 cancellationToken);
+
+        var customerEmail = await _dbContext.Users
+            .AsNoTracking()
+            .Where(customer => customer.Id == customerId)
+            .Select(customer => customer.Email)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(customerEmail))
+        {
+            await transaction.RollbackAsync(cancellationToken);
+
+            return new OrderCreationResult(
+                OrderCreationStatus.CustomerNotFound);
+        }
 
         var products = await _dbContext.Products
             .AsNoTracking()
@@ -174,6 +183,7 @@ public sealed class EfCoreOrderService : IOrderService
 
         var order = new Order
         {
+            CustomerId = customerId,
             CustomerEmail = customerEmail.Trim().ToLowerInvariant(),
             CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
         };
@@ -269,6 +279,7 @@ public sealed class EfCoreOrderService : IOrderService
 
     public async Task<OrderStatusUpdateResult> UpdateStatusAsync(
         int id,
+        Guid customerId,
         OrderStatus newStatus,
         CancellationToken cancellationToken = default)
     {
@@ -280,7 +291,9 @@ public sealed class EfCoreOrderService : IOrderService
             .AsNoTracking()
             .Include(candidate => candidate.Items)
             .SingleOrDefaultAsync(
-                candidate => candidate.Id == id,
+                candidate =>
+                    candidate.Id == id &&
+                    candidate.CustomerId == customerId,
                 cancellationToken);
 
         if (order is null)
@@ -302,6 +315,7 @@ public sealed class EfCoreOrderService : IOrderService
 
         var affectedOrders = await _dbContext.Orders
             .Where(candidate => candidate.Id == id)
+            .Where(candidate => candidate.CustomerId == customerId)
             .Where(candidate => candidate.Status == order.Status)
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(
@@ -382,7 +396,10 @@ public sealed class EfCoreOrderService : IOrderService
 
         await transaction.CommitAsync(cancellationToken);
 
-        var updatedOrder = await GetByIdAsync(id, cancellationToken);
+        var updatedOrder = await GetByIdAsync(
+            id,
+            customerId,
+            cancellationToken);
 
         return new OrderStatusUpdateResult(
             OrderStatusUpdateStatus.Success,

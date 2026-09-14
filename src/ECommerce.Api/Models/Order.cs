@@ -1,8 +1,11 @@
+using ECommerce.Api.Identity;
+
 namespace ECommerce.Api.Models;
 
 public class Order
 {
     public int Id { get; set; }
+    public Guid? CustomerId { get; set; }
     public string CustomerEmail { get; set; } = string.Empty;
     public OrderStatus Status { get; private set; } = OrderStatus.Pending;
     public decimal TotalAmount { get; set; }
@@ -10,6 +13,7 @@ public class Order
 
     public ICollection<OrderItem> Items { get; set; }
         = new List<OrderItem>();
+    public ApplicationUser? Customer { get; set; }
 
     public bool CanTransitionTo(OrderStatus nextStatus)
     {

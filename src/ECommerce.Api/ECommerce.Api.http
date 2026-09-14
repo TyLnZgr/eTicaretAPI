@@ -1,6 +1,43 @@
 @ECommerce.Api_HostAddress = http://localhost:5080
+@accessToken = paste-access-token-here
+@refreshToken = paste-refresh-token-here
 
 GET {{ECommerce.Api_HostAddress}}/
+Accept: application/json
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass1!"
+}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@example.com",
+  "password": "StrongPass1!"
+}
+
+###
+
+POST {{ECommerce.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+GET {{ECommerce.Api_HostAddress}}/api/auth/manage/info
+Authorization: Bearer {{accessToken}}
 Accept: application/json
 
 ###
@@ -78,9 +115,9 @@ Content-Type: application/json
 
 POST {{ECommerce.Api_HostAddress}}/api/orders
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
-  "customerEmail": "customer@example.com",
   "items": [
     {
       "productId": 1,
@@ -93,16 +130,19 @@ Content-Type: application/json
 
 GET {{ECommerce.Api_HostAddress}}/api/orders/1
 Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###
 
 GET {{ECommerce.Api_HostAddress}}/api/orders?status=Pending&page=1&pageSize=20
 Accept: application/json
+Authorization: Bearer {{accessToken}}
 
 ###
 
 PATCH {{ECommerce.Api_HostAddress}}/api/orders/1/status
 Content-Type: application/json
+Authorization: Bearer {{accessToken}}
 
 {
   "status": "Cancelled"

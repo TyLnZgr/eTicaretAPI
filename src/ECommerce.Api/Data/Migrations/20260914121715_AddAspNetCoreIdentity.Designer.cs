@@ -3,6 +3,7 @@ using System;
 using ECommerce.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ECommerce.Api.Data.Migrations
 {
     [DbContext(typeof(ECommerceDbContext))]
-    partial class ECommerceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914121715_AddAspNetCoreIdentity")]
+    partial class AddAspNetCoreIdentity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -120,9 +123,6 @@ namespace ECommerce.Api.Data.Migrations
                         .HasMaxLength(254)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("CustomerId")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -132,7 +132,7 @@ namespace ECommerce.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CustomerId", "CreatedAtUtc");
+                    b.HasIndex("CustomerEmail", "CreatedAtUtc");
 
                     b.ToTable("Orders", null, t =>
                         {
@@ -394,16 +394,6 @@ namespace ECommerce.Api.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("ECommerce.Api.Models.Order", b =>
-                {
-                    b.HasOne("ECommerce.Api.Identity.ApplicationUser", "Customer")
-                        .WithMany("Orders")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Customer");
-                });
-
             modelBuilder.Entity("ECommerce.Api.Models.OrderItem", b =>
                 {
                     b.HasOne("ECommerce.Api.Models.Order", "Order")
@@ -493,11 +483,6 @@ namespace ECommerce.Api.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("ECommerce.Api.Identity.ApplicationUser", b =>
-                {
-                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("ECommerce.Api.Models.Category", b =>

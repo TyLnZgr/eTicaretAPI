@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Models;
 
@@ -13,18 +12,6 @@ public static class OrderRequestValidator
         CreateOrderRequest request)
     {
         var errors = new Dictionary<string, string[]>();
-
-        var email = request.CustomerEmail?.Trim();
-
-        if (string.IsNullOrWhiteSpace(email) ||
-            email.Length > 254 ||
-            !MailAddress.TryCreate(email, out _))
-        {
-            errors["customerEmail"] = new[]
-            {
-                "A valid customer email is required."
-            };
-        }
 
         if (request.Items is null || request.Items.Count == 0)
         {
@@ -84,20 +71,6 @@ public static class OrderRequestValidator
         OrderQueryParameters queryParameters)
     {
         var errors = new Dictionary<string, string[]>();
-
-        if (!string.IsNullOrWhiteSpace(queryParameters.CustomerEmail))
-        {
-            var email = queryParameters.CustomerEmail.Trim();
-
-            if (email.Length > 254 ||
-                !MailAddress.TryCreate(email, out _))
-            {
-                errors["customerEmail"] = new[]
-                {
-                    "Customer email filter must be a valid email address."
-                };
-            }
-        }
 
         if (!string.IsNullOrWhiteSpace(queryParameters.Status) &&
             !TryParseStatus(queryParameters.Status, out _))

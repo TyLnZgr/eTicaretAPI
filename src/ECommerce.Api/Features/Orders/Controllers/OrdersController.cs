@@ -1,15 +1,20 @@
+using ECommerce.Api.Common.Authentication;
 using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Orders.Mappings;
 using ECommerce.Api.Features.Orders.Outcomes;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Orders.Validation;
+using ECommerce.Api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce.Api.Features.Orders.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/orders")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 public sealed class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
@@ -32,6 +37,11 @@ public sealed class OrdersController : ControllerBase
         [FromQuery] OrderQueryParameters queryParameters,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out var customerId))
+        {
+            return Unauthorized();
+        }
+
         var errors = OrderRequestValidator.ValidateQuery(queryParameters);
 
         if (errors.Count > 0)
@@ -41,6 +51,7 @@ public sealed class OrdersController : ControllerBase
         }
 
         var result = await _orderService.GetAllAsync(
+            customerId,
             queryParameters,
             cancellationToken);
 
@@ -57,8 +68,14 @@ public sealed class OrdersController : ControllerBase
         [FromRoute] int id,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out var customerId))
+        {
+            return Unauthorized();
+        }
+
         var order = await _orderService.GetByIdAsync(
             id,
+            customerId,
             cancellationToken);
 
         if (order is null)
@@ -87,12 +104,20 @@ public sealed class OrdersController : ControllerBase
         StatusCodes.Status409Conflict,
         "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status403Forbidden,
+        "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
     public async Task<ActionResult<OrderResponse>> CreateAsync(
         [FromBody] CreateOrderRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out var customerId))
+        {
+            return Unauthorized();
+        }
+
         var errors = OrderRequestValidator.ValidateCreate(request);
 
         if (errors.Count > 0)
@@ -102,9 +127,14 @@ public sealed class OrdersController : ControllerBase
         }
 
         var result = await _orderService.CreateAsync(
-            request.CustomerEmail,
+            customerId,
             request.Items,
             cancellationToken);
+
+        if (result.Status == OrderCreationStatus.CustomerNotFound)
+        {
+            return Unauthorized();
+        }
 
         if (result.Status == OrderCreationStatus.InvalidRequest)
         {
@@ -181,6 +211,11 @@ public sealed class OrdersController : ControllerBase
         [FromBody] UpdateOrderStatusRequest request,
         CancellationToken cancellationToken)
     {
+        if (!User.TryGetUserId(out var customerId))
+        {
+            return Unauthorized();
+        }
+
         if (!OrderRequestValidator.TryParseStatus(request, out var newStatus))
         {
             return ValidationProblem(
@@ -194,8 +229,17 @@ public sealed class OrdersController : ControllerBase
                     }));
         }
 
+        if (newStatus != OrderStatus.Cancelled)
+        {
+            return Problem(
+                detail: "Customers can only cancel their own pending orders.",
+                statusCode: StatusCodes.Status403Forbidden,
+                title: "Forbidden");
+        }
+
         var result = await _orderService.UpdateStatusAsync(
             id,
+            customerId,
             newStatus,
             cancellationToken);
 
