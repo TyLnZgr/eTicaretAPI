@@ -4,9 +4,9 @@ using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Orders.Mappings;
 using ECommerce.Api.Features.Orders.Outcomes;
 using ECommerce.Api.Features.Orders.Validation;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using Microsoft.EntityFrameworkCore;
-
+using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Features.Orders.Services;
 
 public sealed class EfCoreOrderService : IOrderService

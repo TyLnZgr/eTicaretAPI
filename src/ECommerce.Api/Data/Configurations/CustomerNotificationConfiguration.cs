@@ -1,4 +1,5 @@
-using ECommerce.Api.Models;
+using ECommerce.Api.Identity;
+using ECommerce.Domain.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -51,7 +52,7 @@ public sealed class CustomerNotificationConfiguration
         builder.Property(notification => notification.CreatedAtUtc)
             .IsRequired();
 
-        builder.HasOne(notification => notification.Customer)
+        builder.HasOne<ApplicationUser>()
             .WithMany(customer => customer.Notifications)
             .HasForeignKey(notification => notification.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);

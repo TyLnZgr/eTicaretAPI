@@ -1,4 +1,4 @@
-using ECommerce.Api.Models;
+using ECommerce.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

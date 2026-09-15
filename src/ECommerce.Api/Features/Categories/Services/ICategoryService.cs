@@ -1,5 +1,5 @@
 using ECommerce.Api.Features.Categories.Outcomes;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Api.Features.Categories.Services;
 

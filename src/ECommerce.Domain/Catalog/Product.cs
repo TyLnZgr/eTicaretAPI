@@ -1,4 +1,7 @@
-namespace ECommerce.Api.Models;
+using ECommerce.Domain.Carts;
+using ECommerce.Domain.Orders;
+
+namespace ECommerce.Domain.Catalog;
 
 public class Product
 {

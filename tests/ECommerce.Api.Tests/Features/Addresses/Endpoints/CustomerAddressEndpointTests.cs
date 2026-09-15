@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using ECommerce.Api.Features.Addresses.Dtos;
-using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
+using ECommerce.Domain.Customers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Tests.Features.Addresses.Endpoints;

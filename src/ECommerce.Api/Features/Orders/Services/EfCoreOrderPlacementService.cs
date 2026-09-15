@@ -1,7 +1,8 @@
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Orders.Outcomes;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
+using ECommerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Orders.Services;

@@ -1,6 +1,4 @@
-using ECommerce.Api.Identity;
-
-namespace ECommerce.Api.Models;
+namespace ECommerce.Domain.Carts;
 
 public sealed class Cart
 {
@@ -9,7 +7,6 @@ public sealed class Cart
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 
-    public ApplicationUser Customer { get; set; } = null!;
     public ICollection<CartItem> Items { get; set; }
         = new List<CartItem>();
 }

@@ -1,5 +1,5 @@
 using ECommerce.Api.Identity;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Customers;
 
 namespace ECommerce.Api.Tests.Infrastructure;
 

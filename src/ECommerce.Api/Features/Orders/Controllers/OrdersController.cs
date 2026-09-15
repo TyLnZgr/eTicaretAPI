@@ -5,10 +5,10 @@ using ECommerce.Api.Features.Orders.Mappings;
 using ECommerce.Api.Features.Orders.Outcomes;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Api.Features.Orders.Validation;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
+using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Features.Orders.Controllers;
 
 [ApiController]

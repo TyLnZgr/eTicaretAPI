@@ -8,9 +8,10 @@ using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Payments.Dtos;
 using ECommerce.Api.Infrastructure.Outbox;
-using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
+using ECommerce.Domain.Orders;
+using ECommerce.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Tests.Features.Payments.Endpoints;

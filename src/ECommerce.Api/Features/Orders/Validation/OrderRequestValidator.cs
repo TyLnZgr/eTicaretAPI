@@ -1,6 +1,6 @@
 using System.Net.Mail;
 using ECommerce.Api.Features.Orders.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Orders;
 
 namespace ECommerce.Api.Features.Orders.Validation;
 

@@ -1,4 +1,5 @@
-using ECommerce.Api.Models;
+using ECommerce.Api.Identity;
+using ECommerce.Domain.Carts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -21,7 +22,7 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         builder.Property(cart => cart.UpdatedAtUtc)
             .IsRequired();
 
-        builder.HasOne(cart => cart.Customer)
+        builder.HasOne<ApplicationUser>()
             .WithOne(customer => customer.Cart)
             .HasForeignKey<Cart>(cart => cart.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);

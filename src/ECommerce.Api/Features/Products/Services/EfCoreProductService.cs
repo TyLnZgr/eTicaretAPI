@@ -2,7 +2,7 @@ using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Products.Services;

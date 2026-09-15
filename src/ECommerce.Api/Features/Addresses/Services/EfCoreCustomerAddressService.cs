@@ -2,7 +2,7 @@ using ECommerce.Api.Data;
 using ECommerce.Api.Features.Addresses.Dtos;
 using ECommerce.Api.Features.Addresses.Outcomes;
 using ECommerce.Api.Features.Addresses.Validation;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Customers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Addresses.Services;

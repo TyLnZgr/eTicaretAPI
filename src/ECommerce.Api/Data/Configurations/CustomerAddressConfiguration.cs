@@ -1,4 +1,5 @@
-using ECommerce.Api.Models;
+using ECommerce.Api.Identity;
+using ECommerce.Domain.Customers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -98,7 +99,7 @@ public sealed class CustomerAddressConfiguration
         builder.Property(address => address.UpdatedAtUtc)
             .IsRequired();
 
-        builder.HasOne(address => address.Customer)
+        builder.HasOne<ApplicationUser>()
             .WithMany(customer => customer.Addresses)
             .HasForeignKey(address => address.CustomerId)
             .OnDelete(DeleteBehavior.Cascade);

@@ -1,4 +1,6 @@
-namespace ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
+
+namespace ECommerce.Domain.Carts;
 
 public sealed class CartItem
 {

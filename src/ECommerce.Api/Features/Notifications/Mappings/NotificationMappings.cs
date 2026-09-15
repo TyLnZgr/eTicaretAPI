@@ -1,5 +1,5 @@
 using ECommerce.Api.Features.Notifications.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Notifications;
 
 namespace ECommerce.Api.Features.Notifications.Mappings;
 

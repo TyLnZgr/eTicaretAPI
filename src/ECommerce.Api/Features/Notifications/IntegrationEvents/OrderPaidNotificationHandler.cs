@@ -2,7 +2,8 @@ using System.Text.Json;
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Infrastructure.Outbox;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Notifications;
+using ECommerce.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Notifications.IntegrationEvents;
@@ -10,6 +11,7 @@ namespace ECommerce.Api.Features.Notifications.IntegrationEvents;
 public sealed class OrderPaidNotificationHandler
     : IIntegrationEventHandler
 {
+
     public const string ConsumerName = "notifications.order-paid.v1";
 
     private readonly ECommerceDbContext _dbContext;

@@ -1,4 +1,6 @@
-namespace ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
+
+namespace ECommerce.Domain.Orders;
 
 public class OrderItem
 {

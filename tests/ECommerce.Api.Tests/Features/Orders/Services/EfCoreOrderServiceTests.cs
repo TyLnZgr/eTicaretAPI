@@ -1,9 +1,10 @@
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Orders.Outcomes;
 using ECommerce.Api.Features.Orders.Services;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using ECommerce.Domain.Orders;
 
 namespace ECommerce.Api.Tests.Features.Orders.Services;
 

@@ -1,6 +1,7 @@
 using ECommerce.Api.Features.Carts.Outcomes;
 using ECommerce.Api.Features.Carts.Services;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Carts;
+using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 

@@ -1,6 +1,6 @@
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Categories.Outcomes;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Categories.Services;

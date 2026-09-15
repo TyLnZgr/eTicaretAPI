@@ -1,6 +1,4 @@
-using ECommerce.Api.Identity;
-
-namespace ECommerce.Api.Models;
+namespace ECommerce.Domain.Customers;
 
 public sealed class CustomerAddress
 {
@@ -18,6 +16,4 @@ public sealed class CustomerAddress
     public bool IsDefault { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
-
-    public ApplicationUser Customer { get; set; } = null!;
 }

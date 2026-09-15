@@ -1,8 +1,7 @@
 using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Orders.Dtos;
 using ECommerce.Api.Features.Orders.Outcomes;
-using ECommerce.Api.Models;
-
+using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Features.Orders.Services;
 
 public interface IOrderService

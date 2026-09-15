@@ -1,5 +1,5 @@
-using ECommerce.Api.Models;
 using ECommerce.Api.Tests.Infrastructure;
+using ECommerce.Domain.Customers;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Tests.Features.Addresses.Services;

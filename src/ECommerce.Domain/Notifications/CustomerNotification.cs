@@ -1,6 +1,6 @@
-using ECommerce.Api.Identity;
+using ECommerce.Domain.Orders;
 
-namespace ECommerce.Api.Models;
+namespace ECommerce.Domain.Notifications;
 
 public sealed class CustomerNotification
 {
@@ -83,7 +83,6 @@ public sealed class CustomerNotification
     public DateTime CreatedAtUtc { get; private set; }
     public DateTime? ReadAtUtc { get; private set; }
 
-    public ApplicationUser Customer { get; private set; } = null!;
     public Order? Order { get; private set; }
 
     public void MarkAsRead(DateTime readAtUtc)

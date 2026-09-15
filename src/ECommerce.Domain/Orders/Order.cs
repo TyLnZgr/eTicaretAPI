@@ -1,6 +1,6 @@
-using ECommerce.Api.Identity;
+using ECommerce.Domain.Payments;
 
-namespace ECommerce.Api.Models;
+namespace ECommerce.Domain.Orders;
 
 public class Order
 {
@@ -17,7 +17,6 @@ public class Order
         = new List<OrderItem>();
     public ICollection<Payment> Payments { get; set; }
         = new List<Payment>();
-    public ApplicationUser? Customer { get; set; }
 
     public void SetShippingAddress(OrderAddressSnapshot shippingAddress)
     {

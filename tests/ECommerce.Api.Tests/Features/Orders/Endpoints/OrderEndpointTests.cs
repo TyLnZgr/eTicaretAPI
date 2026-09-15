@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Addresses.Dtos;
 using ECommerce.Api.Features.Orders.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-
+using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Tests.Features.Orders.Endpoints;
 
 public sealed class OrderEndpointTests

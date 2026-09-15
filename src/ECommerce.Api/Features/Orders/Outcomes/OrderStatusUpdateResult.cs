@@ -1,5 +1,4 @@
-using ECommerce.Api.Models;
-
+using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Features.Orders.Outcomes;
 
 public sealed record OrderStatusUpdateResult(

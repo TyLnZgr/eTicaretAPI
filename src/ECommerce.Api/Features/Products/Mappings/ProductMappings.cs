@@ -1,5 +1,5 @@
 using ECommerce.Api.Features.Products.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Api.Features.Products.Mappings;
 

@@ -1,4 +1,4 @@
-namespace ECommerce.Api.Models;
+namespace ECommerce.Domain.Notifications;
 
 public enum NotificationType
 {

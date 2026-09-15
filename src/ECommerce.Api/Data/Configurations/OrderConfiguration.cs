@@ -1,4 +1,5 @@
-using ECommerce.Api.Models;
+using ECommerce.Api.Identity;
+using ECommerce.Domain.Orders;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -151,7 +152,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Navigation(order => order.ShippingAddress)
             .IsRequired(false);
 
-        builder.HasOne(order => order.Customer)
+        builder.HasOne<ApplicationUser>()
             .WithMany(customer => customer.Orders)
             .HasForeignKey(order => order.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);

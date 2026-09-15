@@ -1,5 +1,5 @@
 using ECommerce.Api.Features.Carts.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Carts;
 
 namespace ECommerce.Api.Features.Carts.Mappings;
 

@@ -7,7 +7,8 @@ using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Features.Payments.Gateways;
 using ECommerce.Api.Features.Payments.Outcomes;
 using ECommerce.Api.Infrastructure.Outbox;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Orders;
+using ECommerce.Domain.Payments;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Payments.Services;

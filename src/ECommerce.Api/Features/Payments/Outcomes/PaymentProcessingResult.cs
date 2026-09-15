@@ -1,4 +1,4 @@
-using ECommerce.Api.Models;
+using ECommerce.Domain.Payments;
 
 namespace ECommerce.Api.Features.Payments.Outcomes;
 

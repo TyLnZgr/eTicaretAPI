@@ -1,5 +1,5 @@
 using ECommerce.Api.Features.Payments.Dtos;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Payments;
 
 namespace ECommerce.Api.Features.Payments.Mappings;
 

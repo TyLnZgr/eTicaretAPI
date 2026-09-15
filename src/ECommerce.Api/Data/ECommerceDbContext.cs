@@ -1,6 +1,11 @@
 using ECommerce.Api.Identity;
 using ECommerce.Api.Infrastructure.Outbox;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Carts;
+using ECommerce.Domain.Catalog;
+using ECommerce.Domain.Customers;
+using ECommerce.Domain.Notifications;
+using ECommerce.Domain.Orders;
+using ECommerce.Domain.Payments;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

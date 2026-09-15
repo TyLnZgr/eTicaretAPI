@@ -1,4 +1,7 @@
-using ECommerce.Api.Models;
+using ECommerce.Domain.Carts;
+using ECommerce.Domain.Customers;
+using ECommerce.Domain.Notifications;
+using ECommerce.Domain.Orders;
 using Microsoft.AspNetCore.Identity;
 
 namespace ECommerce.Api.Identity;

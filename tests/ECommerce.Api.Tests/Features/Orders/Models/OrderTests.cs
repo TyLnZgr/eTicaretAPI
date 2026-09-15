@@ -1,4 +1,4 @@
-using ECommerce.Api.Models;
+using ECommerce.Domain.Orders;
 
 namespace ECommerce.Api.Tests.Features.Orders.Models;
 

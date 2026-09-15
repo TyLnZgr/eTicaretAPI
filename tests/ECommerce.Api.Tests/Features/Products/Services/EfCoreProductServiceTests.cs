@@ -2,7 +2,7 @@ using ECommerce.Api.Data;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 

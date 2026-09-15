@@ -3,7 +3,7 @@ using ECommerce.Api.Common.Pagination;
 using ECommerce.Api.Features.Products.Dtos;
 using ECommerce.Api.Features.Products.Outcomes;
 using ECommerce.Api.Features.Products.Services;
-using ECommerce.Api.Models;
+using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Api.Features.Products.Endpoints;
 

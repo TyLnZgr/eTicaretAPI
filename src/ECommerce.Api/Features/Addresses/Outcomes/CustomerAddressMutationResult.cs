@@ -1,4 +1,4 @@
-using ECommerce.Api.Models;
+using ECommerce.Domain.Customers;
 
 namespace ECommerce.Api.Features.Addresses.Outcomes;
 

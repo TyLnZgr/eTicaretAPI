@@ -1,4 +1,6 @@
-namespace ECommerce.Api.Models;
+using ECommerce.Domain.Orders;
+
+namespace ECommerce.Domain.Payments;
 
 public sealed class Payment
 {
