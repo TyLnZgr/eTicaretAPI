@@ -23,6 +23,8 @@ public sealed class CartItemConfiguration
         builder.Property(item => item.Quantity)
             .IsRequired();
 
+        builder.HasQueryFilter(item => !item.Product.IsDeleted);
+
         builder.HasOne(item => item.Cart)
             .WithMany(cart => cart.Items)
             .HasForeignKey(item => item.CartId)

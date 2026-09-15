@@ -15,6 +15,8 @@ public static class ProductMappings
             product.IsActive,
             product.CategoryId,
             product.Category.Name,
-            product.Version);
+            product.Version,
+            product.CreatedAtUtc,
+            product.UpdatedAtUtc);
     }
 }

@@ -20,7 +20,8 @@ public class Product
         decimal price,
         int stockQuantity,
         Category category,
-        bool isActive)
+        bool isActive,
+        DateTime createdAtUtc)
     {
         if (stockQuantity < 0)
         {
@@ -29,8 +30,15 @@ public class Product
                 "Stock quantity cannot be negative.");
         }
 
+        CreatedAtUtc = NormalizeUtc(createdAtUtc);
+        UpdatedAtUtc = CreatedAtUtc;
         Version = 0;
-        UpdateDetails(name, price, category, isActive);
+        UpdateDetails(
+            name,
+            price,
+            category,
+            isActive,
+            CreatedAtUtc);
         StockQuantity = stockQuantity;
     }
 
@@ -41,6 +49,10 @@ public class Product
     public bool IsActive { get; internal set; }
     public int CategoryId { get; internal set; }
     public long Version { get; private set; } = 1;
+    public DateTime CreatedAtUtc { get; private set; } = DateTime.UnixEpoch;
+    public DateTime UpdatedAtUtc { get; private set; } = DateTime.UnixEpoch;
+    public DateTime? DeletedAtUtc { get; private set; }
+    public bool IsDeleted { get; private set; }
 
     public Category Category { get; internal set; } = null!;
     public IReadOnlyCollection<StockMovement> StockMovements =>
@@ -52,8 +64,11 @@ public class Product
         string name,
         decimal price,
         Category category,
-        bool isActive)
+        bool isActive,
+        DateTime updatedAtUtc)
     {
+        EnsureNotDeleted();
+
         var normalizedName = NormalizeName(name);
 
         if (price <= 0)
@@ -65,6 +80,9 @@ public class Product
 
         ArgumentNullException.ThrowIfNull(category);
 
+        var normalizedUpdatedAtUtc = NormalizeMutationTime(
+            updatedAtUtc,
+            nameof(updatedAtUtc));
         var nextVersion = checked(Version + 1);
 
         Name = normalizedName;
@@ -72,11 +90,14 @@ public class Product
         Category = category;
         CategoryId = category.Id;
         IsActive = isActive;
+        UpdatedAtUtc = normalizedUpdatedAtUtc;
         Version = nextVersion;
     }
 
     public StockMovement? RecordInitialStock(DateTime createdAtUtc)
     {
+        EnsureNotDeleted();
+
         if (StockQuantity == 0)
         {
             return null;
@@ -88,12 +109,16 @@ public class Product
                 "Initial stock has already been recorded.");
         }
 
+        var normalizedCreatedAtUtc = NormalizeMutationTime(
+            createdAtUtc,
+            nameof(createdAtUtc));
+
         var movement = new StockMovement(
             this,
             StockQuantity,
             StockQuantity,
             "Initial stock",
-            createdAtUtc);
+            normalizedCreatedAtUtc);
 
         _stockMovements.Add(movement);
         return movement;
@@ -104,6 +129,8 @@ public class Product
         string reason,
         DateTime createdAtUtc)
     {
+        EnsureNotDeleted();
+
         if (quantityDelta == 0)
         {
             return new ProductStockChangeResult(
@@ -130,6 +157,9 @@ public class Product
                 ProductStockChangeStatus.StockLimitExceeded);
         }
 
+        var normalizedCreatedAtUtc = NormalizeMutationTime(
+            createdAtUtc,
+            nameof(createdAtUtc));
         var nextVersion = checked(Version + 1);
         StockQuantity = (int)requestedStock;
 
@@ -138,14 +168,36 @@ public class Product
             quantityDelta,
             StockQuantity,
             reason,
-            createdAtUtc);
+            normalizedCreatedAtUtc);
 
         _stockMovements.Add(movement);
+        UpdatedAtUtc = normalizedCreatedAtUtc;
         Version = nextVersion;
 
         return new ProductStockChangeResult(
             ProductStockChangeStatus.Success,
             movement);
+    }
+
+    public bool MarkAsDeleted(DateTime deletedAtUtc)
+    {
+        if (IsDeleted)
+        {
+            return false;
+        }
+
+        var normalizedDeletedAtUtc = NormalizeMutationTime(
+            deletedAtUtc,
+            nameof(deletedAtUtc));
+        var nextVersion = checked(Version + 1);
+
+        IsDeleted = true;
+        IsActive = false;
+        DeletedAtUtc = normalizedDeletedAtUtc;
+        UpdatedAtUtc = normalizedDeletedAtUtc;
+        Version = nextVersion;
+
+        return true;
     }
 
     private static string NormalizeName(string name)
@@ -167,5 +219,35 @@ public class Product
         }
 
         return normalizedName;
+    }
+
+    private void EnsureNotDeleted()
+    {
+        if (IsDeleted)
+        {
+            throw new InvalidOperationException(
+                "A deleted product cannot be modified.");
+        }
+    }
+
+    private DateTime NormalizeMutationTime(
+        DateTime value,
+        string parameterName)
+    {
+        var normalizedValue = NormalizeUtc(value);
+
+        if (normalizedValue < UpdatedAtUtc)
+        {
+            throw new ArgumentOutOfRangeException(
+                parameterName,
+                "The mutation time cannot be earlier than the last update time.");
+        }
+
+        return normalizedValue;
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return DateTime.SpecifyKind(value, DateTimeKind.Utc);
     }
 }

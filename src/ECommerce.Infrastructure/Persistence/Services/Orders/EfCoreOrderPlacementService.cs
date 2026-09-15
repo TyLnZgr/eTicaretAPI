@@ -246,7 +246,10 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
                                 product.StockQuantity - requestedItem.Quantity)
                         .SetProperty(
                             product => product.Version,
-                            product => product.Version + 1),
+                            product => product.Version + 1)
+                        .SetProperty(
+                            product => product.UpdatedAtUtc,
+                            order.CreatedAtUtc),
                     cancellationToken);
 
             if (affectedRows == 0)

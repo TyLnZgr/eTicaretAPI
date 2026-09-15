@@ -364,10 +364,21 @@ public sealed class ProductsController : ControllerBase
 
     [HttpDelete("{id:int}", Name = "DeleteProduct")]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
-    [EndpointSummary("Delete a product")]
+    [EndpointSummary("Soft-delete a product")]
+    [EndpointDescription(
+        "Marks a product as deleted while preserving its historical data.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ValidationProblemDetails>(
+        StatusCodes.Status400BadRequest,
+        "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound,
+        "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status412PreconditionFailed,
+        "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status428PreconditionRequired,
         "application/problem+json")]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -375,16 +386,50 @@ public sealed class ProductsController : ControllerBase
         [FromRoute] int id,
         CancellationToken cancellationToken)
     {
-        var wasDeleted = await _productService.DeleteAsync(
+        if (!Request.Headers.TryGetValue(
+                HeaderNames.IfMatch,
+                out var ifMatchValues))
+        {
+            return Problem(
+                detail: "The If-Match header is required to delete a product.",
+                statusCode: StatusCodes.Status428PreconditionRequired,
+                title: "Precondition Required",
+                type: "https://www.rfc-editor.org/rfc/rfc6585#section-3");
+        }
+
+        if (!EntityTagHeader.TryParse(ifMatchValues, out var expectedVersion))
+        {
+            return ValidationProblem(
+                new ValidationProblemDetails(
+                    new Dictionary<string, string[]>
+                    {
+                        [HeaderNames.IfMatch] = new[]
+                        {
+                            "If-Match must contain one strong product ETag."
+                        }
+                    }));
+        }
+
+        var status = await _productService.DeleteAsync(
             id,
+            expectedVersion,
             cancellationToken);
 
-        if (!wasDeleted)
+        if (status == ProductDeleteStatus.ProductNotFound)
         {
             return Problem(
                 detail: $"Product with ID {id} was not found.",
                 statusCode: StatusCodes.Status404NotFound,
                 title: "Not Found");
+        }
+
+        if (status == ProductDeleteStatus.ConcurrencyConflict)
+        {
+            return Problem(
+                detail: "The product changed after it was retrieved. " +
+                        "Get the product again and retry with the new ETag.",
+                statusCode: StatusCodes.Status412PreconditionFailed,
+                title: "Precondition Failed");
         }
 
         return NoContent();

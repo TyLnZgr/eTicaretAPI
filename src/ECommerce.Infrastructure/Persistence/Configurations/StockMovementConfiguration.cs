@@ -35,6 +35,8 @@ public sealed class StockMovementConfiguration
         builder.Property(movement => movement.CreatedAtUtc)
             .IsRequired();
 
+        builder.HasQueryFilter(movement => !movement.Product.IsDeleted);
+
         builder.HasIndex(movement => new
         {
             movement.ProductId,

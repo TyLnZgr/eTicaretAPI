@@ -87,6 +87,7 @@ public sealed class EfCoreCategoryService : ICategoryService
         }
 
         var hasProducts = await _dbContext.Products
+            .IgnoreQueryFilters()
             .AnyAsync(
                 product => product.CategoryId == id,
                 cancellationToken);

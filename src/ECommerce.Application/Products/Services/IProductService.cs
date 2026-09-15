@@ -41,7 +41,8 @@ public interface IProductService
         string reason,
         CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteAsync(
+    Task<ProductDeleteStatus> DeleteAsync(
         int id,
+        long expectedVersion,
         CancellationToken cancellationToken = default);
 }

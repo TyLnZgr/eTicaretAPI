@@ -283,4 +283,48 @@ public sealed class CategoryEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
     }
+
+    [Fact]
+    public async Task DeleteAsync_WhenCategoryHasSoftDeletedProduct_ReturnsConflict()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        var categoryId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var category = new Category
+            {
+                Name = "Category With Deleted Product",
+                IsActive = true
+            };
+            var product = new Product
+            {
+                Name = "Deleted Product",
+                Price = 100m,
+                StockQuantity = 5,
+                IsActive = true,
+                Category = category
+            };
+
+            product.MarkAsDeleted(DateTime.UtcNow);
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            categoryId = category.Id;
+        });
+
+        // Act
+        using var response =
+            await client.DeleteAsync($"/api/categories/{categoryId}");
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.Conflict,
+            "Conflict",
+            $"Category with ID {categoryId} cannot be deleted because it has products.");
+    }
 }

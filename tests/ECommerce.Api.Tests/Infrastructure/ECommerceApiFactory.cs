@@ -51,7 +51,8 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
 
             services.AddSingleton<DbConnection>(_ =>
             {
-                var connection = new SqliteConnection("Data Source=:memory:");
+                var connection = new SqliteConnection(
+                    "Data Source=:memory:;Foreign Keys=True");
                 connection.Open();
 
                 return connection;

@@ -17,7 +17,8 @@ public sealed class ProductTests
             2499.90m,
             10,
             category,
-            isActive: true);
+            isActive: true,
+            OccurredAtUtc);
 
         Assert.Equal("Mechanical Keyboard", product.Name);
         Assert.Equal(2499.90m, product.Price);
@@ -26,6 +27,10 @@ public sealed class ProductTests
         Assert.Same(category, product.Category);
         Assert.True(product.IsActive);
         Assert.Equal(1, product.Version);
+        Assert.Equal(OccurredAtUtc, product.CreatedAtUtc);
+        Assert.Equal(OccurredAtUtc, product.UpdatedAtUtc);
+        Assert.Null(product.DeletedAtUtc);
+        Assert.False(product.IsDeleted);
     }
 
     [Theory]
@@ -38,7 +43,8 @@ public sealed class ProductTests
             price,
             10,
             CreateCategory(),
-            isActive: true));
+            isActive: true,
+            OccurredAtUtc));
     }
 
     [Fact]
@@ -49,7 +55,8 @@ public sealed class ProductTests
             1000m,
             -1,
             CreateCategory(),
-            isActive: true));
+            isActive: true,
+            OccurredAtUtc));
     }
 
     [Fact]
@@ -63,7 +70,8 @@ public sealed class ProductTests
             "  Updated Keyboard  ",
             1500m,
             newCategory,
-            isActive: false);
+            isActive: false,
+            OccurredAtUtc.AddMinutes(5));
 
         Assert.Equal("Updated Keyboard", product.Name);
         Assert.Equal(1500m, product.Price);
@@ -72,6 +80,9 @@ public sealed class ProductTests
         Assert.Same(newCategory, product.Category);
         Assert.False(product.IsActive);
         Assert.Equal(originalVersion + 1, product.Version);
+        Assert.Equal(
+            OccurredAtUtc.AddMinutes(5),
+            product.UpdatedAtUtc);
     }
 
     [Fact]
@@ -98,11 +109,12 @@ public sealed class ProductTests
     {
         var product = CreateProduct(stockQuantity: 8);
         var originalVersion = product.Version;
+        var adjustedAtUtc = OccurredAtUtc.AddMinutes(5);
 
         var result = product.AdjustStock(
             quantityDelta: -3,
             reason: "  Customer order  ",
-            OccurredAtUtc);
+            adjustedAtUtc);
 
         Assert.Equal(ProductStockChangeStatus.Success, result.Status);
         Assert.Equal(5, product.StockQuantity);
@@ -112,6 +124,7 @@ public sealed class ProductTests
         Assert.Equal("Customer order", result.Movement.Reason);
         Assert.Single(product.StockMovements);
         Assert.Equal(originalVersion + 1, product.Version);
+        Assert.Equal(adjustedAtUtc, product.UpdatedAtUtc);
     }
 
     [Theory]
@@ -138,6 +151,86 @@ public sealed class ProductTests
         Assert.Equal(originalVersion, product.Version);
     }
 
+    [Fact]
+    public void MarkAsDeleted_WhenProductExists_ChangesLifecycleState()
+    {
+        var product = CreateProduct(stockQuantity: 8);
+        var deletedAtUtc = OccurredAtUtc.AddMinutes(10);
+        var originalVersion = product.Version;
+
+        var wasChanged = product.MarkAsDeleted(deletedAtUtc);
+
+        Assert.True(wasChanged);
+        Assert.True(product.IsDeleted);
+        Assert.False(product.IsActive);
+        Assert.Equal(deletedAtUtc, product.DeletedAtUtc);
+        Assert.Equal(deletedAtUtc, product.UpdatedAtUtc);
+        Assert.Equal(originalVersion + 1, product.Version);
+    }
+
+    [Fact]
+    public void MarkAsDeleted_WhenRepeated_DoesNotChangeStateAgain()
+    {
+        var product = CreateProduct(stockQuantity: 8);
+        var firstDeletedAtUtc = OccurredAtUtc.AddMinutes(10);
+
+        Assert.True(product.MarkAsDeleted(firstDeletedAtUtc));
+        var deletedVersion = product.Version;
+
+        var wasChanged = product.MarkAsDeleted(
+            OccurredAtUtc.AddMinutes(20));
+
+        Assert.False(wasChanged);
+        Assert.Equal(firstDeletedAtUtc, product.DeletedAtUtc);
+        Assert.Equal(firstDeletedAtUtc, product.UpdatedAtUtc);
+        Assert.Equal(deletedVersion, product.Version);
+    }
+
+    [Fact]
+    public void UpdateDetails_WhenProductIsDeleted_Throws()
+    {
+        var product = CreateProduct(stockQuantity: 8);
+        product.MarkAsDeleted(OccurredAtUtc.AddMinutes(10));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            product.UpdateDetails(
+                "Updated Keyboard",
+                1500m,
+                CreateCategory(id: 2),
+                isActive: true,
+                OccurredAtUtc.AddMinutes(20)));
+    }
+
+    [Fact]
+    public void UpdateDetails_WhenTimeMovesBackward_DoesNotChangeState()
+    {
+        var product = CreateProduct(stockQuantity: 8);
+
+        product.UpdateDetails(
+            "First Update",
+            1200m,
+            CreateCategory(id: 2),
+            isActive: true,
+            OccurredAtUtc.AddMinutes(10));
+        var versionAfterFirstUpdate = product.Version;
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            product.UpdateDetails(
+                "Older Update",
+                1300m,
+                CreateCategory(id: 3),
+                isActive: false,
+                OccurredAtUtc.AddMinutes(5)));
+
+        Assert.Equal("First Update", product.Name);
+        Assert.Equal(1200m, product.Price);
+        Assert.True(product.IsActive);
+        Assert.Equal(versionAfterFirstUpdate, product.Version);
+        Assert.Equal(
+            OccurredAtUtc.AddMinutes(10),
+            product.UpdatedAtUtc);
+    }
+
     private static Product CreateProduct(int stockQuantity)
     {
         return new Product(
@@ -145,7 +238,8 @@ public sealed class ProductTests
             1000m,
             stockQuantity,
             CreateCategory(),
-            isActive: true);
+            isActive: true,
+            OccurredAtUtc);
     }
 
     private static Category CreateCategory(int id = 1)

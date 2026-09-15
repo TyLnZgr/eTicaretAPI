@@ -8,4 +8,6 @@ public sealed record ProductResponse(
     bool IsActive,
     int CategoryId,
     string CategoryName,
-    long Version);
+    long Version,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);

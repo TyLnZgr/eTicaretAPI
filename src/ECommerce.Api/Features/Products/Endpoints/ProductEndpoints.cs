@@ -70,9 +70,14 @@ public static class ProductEndpoints
 
         group.MapDelete("/{id:int}", DeleteAsync)
             .WithName("DeleteProduct")
-            .WithSummary("Delete a product")
+            .WithSummary("Soft-delete a product")
+            .WithDescription(
+                "Marks a product as deleted while preserving its historical data.")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired);
 
         return endpoints;
     }
@@ -402,16 +407,40 @@ public static class ProductEndpoints
     private static async Task<IResult> DeleteAsync(
         int id,
         IProductService productService,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var wasDeleted = await productService.DeleteAsync(
+        if (!httpContext.Request.Headers.TryGetValue(
+                HeaderNames.IfMatch,
+                out var ifMatchValues))
+        {
+            return ApiProblemResults.PreconditionRequired(
+                "The If-Match header is required to delete a product.");
+        }
+
+        if (!EntityTagHeader.TryParse(ifMatchValues, out var expectedVersion))
+        {
+            return ApiProblemResults.Validation(
+                HeaderNames.IfMatch,
+                "If-Match must contain one strong product ETag.");
+        }
+
+        var status = await productService.DeleteAsync(
             id,
+            expectedVersion,
             cancellationToken);
 
-        if (!wasDeleted)
+        if (status == ProductDeleteStatus.ProductNotFound)
         {
             return ApiProblemResults.NotFound(
                 $"Product with ID {id} was not found.");
+        }
+
+        if (status == ProductDeleteStatus.ConcurrencyConflict)
+        {
+            return ApiProblemResults.PreconditionFailed(
+                "The product changed after it was retrieved. " +
+                "Get the product again and retry with the new ETag.");
         }
 
         return Results.NoContent();
@@ -463,6 +492,8 @@ public static class ProductEndpoints
             product.IsActive,
             product.CategoryId,
             product.Category.Name,
-            product.Version);
+            product.Version,
+            product.CreatedAtUtc,
+            product.UpdatedAtUtc);
     }
 }

@@ -120,7 +120,9 @@ public class EfCoreProductService : IProductService
                 product.IsActive,
                 product.CategoryId,
                 product.Category.Name,
-                product.Version))
+                product.Version,
+                product.CreatedAtUtc,
+                product.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<ProductResponse>(
@@ -145,7 +147,9 @@ public class EfCoreProductService : IProductService
                 product.IsActive,
                 product.CategoryId,
                 product.Category.Name,
-                product.Version))
+                product.Version,
+                product.CreatedAtUtc,
+                product.UpdatedAtUtc))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -198,15 +202,16 @@ public class EfCoreProductService : IProductService
                 ProductMutationStatus.CategoryNotFound);
         }
 
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var product = new Product(
             name,
             price,
             stockQuantity,
             category,
-            isActive);
+            isActive,
+            now);
 
-        product.RecordInitialStock(
-            _timeProvider.GetUtcNow().UtcDateTime);
+        product.RecordInitialStock(now);
 
         _dbContext.Products.Add(product);
 
@@ -253,7 +258,12 @@ public class EfCoreProductService : IProductService
                 ProductMutationStatus.CategoryNotFound);
         }
 
-        product.UpdateDetails(name, price, category, isActive);
+        product.UpdateDetails(
+            name,
+            price,
+            category,
+            isActive,
+            _timeProvider.GetUtcNow().UtcDateTime);
 
         try
         {
@@ -290,6 +300,7 @@ public class EfCoreProductService : IProductService
         reason = reason.Trim();
 
         var quantityDeltaAsLong = (long)quantityDelta;
+        var occurredAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
         await using var transaction =
             await _dbContext.Database.BeginTransactionAsync(
@@ -307,7 +318,10 @@ public class EfCoreProductService : IProductService
                         product => product.StockQuantity + quantityDelta)
                     .SetProperty(
                         product => product.Version,
-                        product => product.Version + 1),
+                        product => product.Version + 1)
+                    .SetProperty(
+                        product => product.UpdatedAtUtc,
+                        occurredAtUtc),
                 cancellationToken);
 
         if (affectedRows == 1)
@@ -323,7 +337,7 @@ public class EfCoreProductService : IProductService
                 quantityDelta,
                 stockQuantityAfter,
                 reason,
-                _timeProvider.GetUtcNow().UtcDateTime));
+                occurredAtUtc));
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -354,10 +368,15 @@ public class EfCoreProductService : IProductService
             : ProductStockAdjustmentStatus.StockLimitExceeded;
     }
 
-    public async Task<bool> DeleteAsync(
+    public async Task<ProductDeleteStatus> DeleteAsync(
         int id,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
+        await using var transaction =
+            await _dbContext.Database.BeginTransactionAsync(
+                cancellationToken);
+
         var product = await _dbContext.Products
             .SingleOrDefaultAsync(
                 product => product.Id == id,
@@ -365,13 +384,35 @@ public class EfCoreProductService : IProductService
 
         if (product is null)
         {
-            return false;
+            await transaction.RollbackAsync(cancellationToken);
+            return ProductDeleteStatus.ProductNotFound;
         }
 
-        _dbContext.Products.Remove(product);
+        if (product.Version != expectedVersion)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return ProductDeleteStatus.ConcurrencyConflict;
+        }
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        product.MarkAsDeleted(
+            _timeProvider.GetUtcNow().UtcDateTime);
 
-        return true;
+        await _dbContext.CartItems
+            .Where(item => item.ProductId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+
+            return ProductDeleteStatus.ConcurrencyConflict;
+        }
+
+        return ProductDeleteStatus.Success;
     }
 }

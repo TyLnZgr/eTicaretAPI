@@ -226,6 +226,7 @@ public sealed class EfCoreOrderService : IOrderService
                 var quantityAsLong = (long)item.Quantity;
 
                 var affectedProducts = await _dbContext.Products
+                    .IgnoreQueryFilters()
                     .Where(product => product.Id == productId)
                     .Where(product =>
                         (long)product.StockQuantity + quantityAsLong <=
@@ -238,12 +239,16 @@ public sealed class EfCoreOrderService : IOrderService
                                     product.StockQuantity + item.Quantity)
                             .SetProperty(
                                 product => product.Version,
-                                product => product.Version + 1),
+                                product => product.Version + 1)
+                            .SetProperty(
+                                product => product.UpdatedAtUtc,
+                                movementTime),
                         cancellationToken);
 
                 if (affectedProducts == 0)
                 {
                     var productExists = await _dbContext.Products
+                        .IgnoreQueryFilters()
                         .AsNoTracking()
                         .AnyAsync(
                             product => product.Id == productId,
@@ -263,6 +268,7 @@ public sealed class EfCoreOrderService : IOrderService
                 }
 
                 var stockQuantityAfter = await _dbContext.Products
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
                     .Where(product => product.Id == productId)
                     .Select(product => product.StockQuantity)

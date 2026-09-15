@@ -214,6 +214,14 @@ public sealed class EfCoreProductServiceTests
         // Arrange
         await using var database =
             await SqliteTestDatabase.CreateAsync();
+        var now = new DateTimeOffset(
+            2026,
+            9,
+            15,
+            12,
+            0,
+            0,
+            TimeSpan.Zero);
 
         var category = new Category
         {
@@ -226,7 +234,7 @@ public sealed class EfCoreProductServiceTests
 
         var service = new EfCoreProductService(
             database.DbContext,
-            TimeProvider.System);
+            new FixedTimeProvider(now));
 
         // Act
         var result = await service.CreateAsync(
@@ -239,6 +247,8 @@ public sealed class EfCoreProductServiceTests
         // Assert
         Assert.Equal(ProductMutationStatus.Success, result.Status);
         Assert.NotNull(result.Product);
+        Assert.Equal(now.UtcDateTime, result.Product.CreatedAtUtc);
+        Assert.Equal(now.UtcDateTime, result.Product.UpdatedAtUtc);
 
         var movement = await database.DbContext.StockMovements
             .AsNoTracking()
@@ -248,6 +258,7 @@ public sealed class EfCoreProductServiceTests
         Assert.Equal(8, movement.QuantityDelta);
         Assert.Equal(8, movement.StockQuantityAfter);
         Assert.Equal("Initial stock", movement.Reason);
+        Assert.Equal(now.UtcDateTime, movement.CreatedAtUtc);
     }
 
     [Fact]
@@ -263,14 +274,23 @@ public sealed class EfCoreProductServiceTests
             1000m,
             stockQuantity: 5,
             category,
-            isActive: true);
+            isActive: true,
+            new DateTime(2026, 9, 15, 12, 0, 0, DateTimeKind.Utc));
 
         database.DbContext.Products.Add(product);
         await database.DbContext.SaveChangesAsync();
 
         var service = new EfCoreProductService(
             database.DbContext,
-            TimeProvider.System);
+            new FixedTimeProvider(
+                new DateTimeOffset(
+                    2026,
+                    9,
+                    15,
+                    13,
+                    0,
+                    0,
+                    TimeSpan.Zero)));
         var originalVersion = product.Version;
 
         var firstResult = await service.UpdateAsync(
@@ -305,6 +325,9 @@ public sealed class EfCoreProductServiceTests
         Assert.Equal("First Update", savedProduct.Name);
         Assert.Equal(1100m, savedProduct.Price);
         Assert.Equal(originalVersion + 1, savedProduct.Version);
+        Assert.Equal(
+            new DateTime(2026, 9, 15, 13, 0, 0, DateTimeKind.Utc),
+            savedProduct.UpdatedAtUtc);
     }
 
     [Fact]
@@ -351,6 +374,7 @@ public sealed class EfCoreProductServiceTests
 
         Assert.Equal(2, product.StockQuantity);
         Assert.Equal(originalVersion + 1, product.Version);
+        Assert.True(product.UpdatedAtUtc > product.CreatedAtUtc);
 
         var movement = await database.DbContext.StockMovements
             .AsNoTracking()
@@ -497,5 +521,20 @@ public sealed class EfCoreProductServiceTests
         Assert.Equal(5, product.StockQuantity);
         Assert.False(
             await database.DbContext.StockMovements.AnyAsync());
+    }
+
+    private sealed class FixedTimeProvider : TimeProvider
+    {
+        private readonly DateTimeOffset _utcNow;
+
+        public FixedTimeProvider(DateTimeOffset utcNow)
+        {
+            _utcNow = utcNow;
+        }
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _utcNow;
+        }
     }
 }

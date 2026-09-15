@@ -98,7 +98,7 @@ public sealed class EfCoreOrderServiceTests
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_WhenCancellationIsRepeated_RestoresStockOnlyOnce()
+    public async Task UpdateStatusAsync_WhenCancellationIsRepeated_RestoresSoftDeletedProductStockOnlyOnce()
     {
         // Arrange
         await using var database =
@@ -140,6 +140,9 @@ public sealed class EfCoreOrderServiceTests
         database.DbContext.Orders.Add(order);
         await database.DbContext.SaveChangesAsync();
 
+        product.MarkAsDeleted(DateTime.UtcNow);
+        await database.DbContext.SaveChangesAsync();
+
         var service = new EfCoreOrderService(
             database.DbContext,
             TimeProvider.System);
@@ -168,15 +171,17 @@ public sealed class EfCoreOrderServiceTests
 
         database.DbContext.ChangeTracker.Clear();
 
-        var stockQuantity = await database.DbContext.Products
+        var savedProduct = await database.DbContext.Products
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(candidate => candidate.Id == product.Id)
-            .Select(candidate => candidate.StockQuantity)
             .SingleAsync();
 
-        Assert.Equal(5, stockQuantity);
+        Assert.Equal(5, savedProduct.StockQuantity);
+        Assert.True(savedProduct.IsDeleted);
 
         var movement = await database.DbContext.StockMovements
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .SingleAsync();
 

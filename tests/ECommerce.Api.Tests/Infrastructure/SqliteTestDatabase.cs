@@ -21,7 +21,8 @@ public sealed class SqliteTestDatabase : IAsyncDisposable
     public static async Task<SqliteTestDatabase> CreateAsync()
     {
         var connection =
-            new SqliteConnection("Data Source=:memory:");
+            new SqliteConnection(
+                "Data Source=:memory:;Foreign Keys=True");
 
         await connection.OpenAsync();
 

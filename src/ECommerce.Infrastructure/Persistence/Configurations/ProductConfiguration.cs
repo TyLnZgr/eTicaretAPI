@@ -28,6 +28,15 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                 tableBuilder.HasCheckConstraint(
                     "CK_Products_IsActive_Valid",
                     "\"IsActive\" IN (0, 1)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_IsDeleted_Valid",
+                    "\"IsDeleted\" IN (0, 1)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_DeletionState_Valid",
+                    "(\"IsDeleted\" = 0 AND \"DeletedAtUtc\" IS NULL) OR " +
+                    "(\"IsDeleted\" = 1 AND \"DeletedAtUtc\" IS NOT NULL)");
             });
 
         builder.HasKey(product => product.Id);
@@ -42,6 +51,14 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(product => product.Version)
             .IsRequired()
             .IsConcurrencyToken();
+
+        builder.Property(product => product.CreatedAtUtc)
+            .IsRequired();
+
+        builder.Property(product => product.UpdatedAtUtc)
+            .IsRequired();
+
+        builder.HasQueryFilter(product => !product.IsDeleted);
 
         builder.HasOne(product => product.Category)
             .WithMany(category => category.Products)

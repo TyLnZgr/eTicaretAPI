@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Products.Dtos;
+using ECommerce.Domain.Carts;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Tests.Features.Products.Endpoints;
 
@@ -539,7 +541,8 @@ public sealed class ProductEndpointTests
                 1000m,
                 stockQuantity: 4,
                 category,
-                isActive: true);
+                isActive: true,
+                DateTime.UtcNow);
 
             dbContext.Products.Add(product);
             await dbContext.SaveChangesAsync();
@@ -907,13 +910,16 @@ public sealed class ProductEndpointTests
     }
 
     [Fact]
-    public async Task DeleteAsync_WhenProductExists_ReturnsNoContentAndRemovesProduct()
+    public async Task DeleteAsync_WhenProductExists_SoftDeletesProduct()
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
         using var client = factory.CreateAdministratorClient();
 
         var productId = 0;
+        var originalVersion = 0L;
+        var customerId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -930,15 +936,32 @@ public sealed class ProductEndpointTests
                 }
             };
 
+            dbContext.Users.Add(TestEntityFactory.CreateUser(
+                customerId,
+                "customer@example.com"));
             dbContext.Products.Add(product);
             await dbContext.SaveChangesAsync();
 
+            var cart = new Cart(customerId, now);
+            cart.SetItemQuantity(product.Id, quantity: 1, now);
+            dbContext.Carts.Add(cart);
+            await dbContext.SaveChangesAsync();
+
             productId = product.Id;
+            originalVersion = product.Version;
         });
 
+        using var getBeforeDeleteResponse =
+            await client.GetAsync($"/api/products/{productId}");
+        var entityTag = getBeforeDeleteResponse.Headers.ETag?.ToString();
+
+        Assert.NotNull(entityTag);
+
         // Act
-        using var response =
-            await client.DeleteAsync($"/api/products/{productId}");
+        using var response = await DeleteProductAsync(
+            client,
+            productId,
+            entityTag);
 
         // Assert
         Assert.Equal(
@@ -951,6 +974,103 @@ public sealed class ProductEndpointTests
         Assert.Equal(
             HttpStatusCode.NotFound,
             getResponse.StatusCode);
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.False(await dbContext.Products.AnyAsync());
+
+            var deletedProduct = await dbContext.Products
+                .IgnoreQueryFilters()
+                .SingleAsync(product => product.Id == productId);
+
+            Assert.True(deletedProduct.IsDeleted);
+            Assert.False(deletedProduct.IsActive);
+            Assert.NotNull(deletedProduct.DeletedAtUtc);
+            Assert.Equal(
+                deletedProduct.DeletedAtUtc,
+                deletedProduct.UpdatedAtUtc);
+            Assert.Equal(
+                originalVersion + 1,
+                deletedProduct.Version);
+            Assert.False(await dbContext.CartItems.AnyAsync());
+        });
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithoutIfMatch_ReturnsPreconditionRequired()
+    {
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        using var response = await client.DeleteAsync("/api/products/1");
+
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.PreconditionRequired,
+            "Precondition Required",
+            "The If-Match header is required to delete a product.");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithStaleETag_ReturnsPreconditionFailed()
+    {
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        var productId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var product = new Product
+            {
+                Name = "Product To Keep",
+                Price = 500m,
+                StockQuantity = 3,
+                IsActive = true,
+                Category = new Category
+                {
+                    Name = "Test Category",
+                    IsActive = true
+                }
+            };
+
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+            productId = product.Id;
+        });
+
+        using var getResponse =
+            await client.GetAsync($"/api/products/{productId}");
+        var staleETag = getResponse.Headers.ETag?.ToString();
+
+        Assert.NotNull(staleETag);
+
+        using var stockResponse = await client.PatchAsJsonAsync(
+            $"/api/products/{productId}/stock",
+            new AdjustProductStockRequest
+            {
+                QuantityDelta = 1,
+                Reason = "Warehouse delivery"
+            });
+
+        Assert.Equal(HttpStatusCode.NoContent, stockResponse.StatusCode);
+
+        using var deleteResponse = await DeleteProductAsync(
+            client,
+            productId,
+            staleETag);
+
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            deleteResponse,
+            HttpStatusCode.PreconditionFailed,
+            "Precondition Failed",
+            "The product changed after it was retrieved. " +
+            "Get the product again and retry with the new ETag.");
+
+        using var getAfterDeleteResponse =
+            await client.GetAsync($"/api/products/{productId}");
+
+        Assert.Equal(HttpStatusCode.OK, getAfterDeleteResponse.StatusCode);
     }
 
     private static async Task<HttpResponseMessage> UpdateProductAsync(
@@ -965,6 +1085,20 @@ public sealed class ProductEndpointTests
         {
             Content = JsonContent.Create(request)
         };
+
+        message.Headers.TryAddWithoutValidation("If-Match", entityTag);
+
+        return await client.SendAsync(message);
+    }
+
+    private static async Task<HttpResponseMessage> DeleteProductAsync(
+        HttpClient client,
+        int productId,
+        string entityTag)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/products/{productId}");
 
         message.Headers.TryAddWithoutValidation("If-Match", entityTag);
 

@@ -27,6 +27,7 @@ public class InMemoryProductService : IProductService
     public InMemoryProductService(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider;
+        var createdAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         _products = new List<Product>
         {
             new Product(
@@ -34,7 +35,8 @@ public class InMemoryProductService : IProductService
                 2499.90m,
                 25,
                 _categories[1],
-                true)
+                true,
+                createdAtUtc)
             {
                 Id = 1,
             },
@@ -43,7 +45,8 @@ public class InMemoryProductService : IProductService
                 1299.50m,
                 40,
                 _categories[1],
-                true)
+                true,
+                createdAtUtc)
             {
                 Id = 2,
             },
@@ -52,7 +55,8 @@ public class InMemoryProductService : IProductService
                 12999.00m,
                 0,
                 _categories[1],
-                false)
+                false,
+                createdAtUtc)
             {
                 Id = 3,
             }
@@ -65,7 +69,8 @@ public class InMemoryProductService : IProductService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        IEnumerable<Product> query = _products;
+        IEnumerable<Product> query = _products
+            .Where(product => !product.IsDeleted);
 
         var searchTerm = string.IsNullOrWhiteSpace(queryParameters.Search)
             ? null
@@ -227,20 +232,21 @@ public class InMemoryProductService : IProductService
             nextId = _products.Max(candidate => candidate.Id) + 1;
         }
 
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         var product = new Product(
             name,
             price,
             stockQuantity,
             category,
-            isActive)
+            isActive,
+            now)
         {
             Id = nextId,
         };
 
         _products.Add(product);
 
-        var initialMovement = product.RecordInitialStock(
-            _timeProvider.GetUtcNow().UtcDateTime);
+        var initialMovement = product.RecordInitialStock(now);
 
         if (initialMovement is not null)
         {
@@ -290,7 +296,12 @@ public class InMemoryProductService : IProductService
                         ProductMutationStatus.CategoryNotFound));
             }
 
-            product.UpdateDetails(name, price, category, isActive);
+            product.UpdateDetails(
+                name,
+                price,
+                category,
+                isActive,
+                _timeProvider.GetUtcNow().UtcDateTime);
 
             return Task.FromResult(
                 new ProductMutationResult(
@@ -347,33 +358,41 @@ public class InMemoryProductService : IProductService
         }
     }
 
-    public Task<bool> DeleteAsync(
+    public Task<ProductDeleteStatus> DeleteAsync(
         int id,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var product = FindById(id);
-
-        if (product is null)
+        lock (_products)
         {
-            return Task.FromResult(false);
+            var product = FindById(id);
+
+            if (product is null)
+            {
+                return Task.FromResult(
+                    ProductDeleteStatus.ProductNotFound);
+            }
+
+            if (product.Version != expectedVersion)
+            {
+                return Task.FromResult(
+                    ProductDeleteStatus.ConcurrencyConflict);
+            }
+
+            product.MarkAsDeleted(
+                _timeProvider.GetUtcNow().UtcDateTime);
+
+            return Task.FromResult(ProductDeleteStatus.Success);
         }
-
-        var wasDeleted = _products.Remove(product);
-
-        if (wasDeleted)
-        {
-            _stockMovements.RemoveAll(
-                movement => movement.ProductId == id);
-        }
-
-        return Task.FromResult(wasDeleted);
     }
 
     private Product? FindById(int id)
     {
-        return _products.FirstOrDefault(candidate => candidate.Id == id);
+        return _products.FirstOrDefault(candidate =>
+            candidate.Id == id &&
+            !candidate.IsDeleted);
     }
 
     private int NextStockMovementId()
@@ -412,7 +431,9 @@ public class InMemoryProductService : IProductService
             product.IsActive,
             product.CategoryId,
             product.Category.Name,
-            product.Version);
+            product.Version,
+            product.CreatedAtUtc,
+            product.UpdatedAtUtc);
     }
 
     private static StockMovementResponse ToStockMovementResponse(
