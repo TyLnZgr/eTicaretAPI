@@ -1,5 +1,6 @@
 using ECommerce.Api.Common.Authentication;
 using ECommerce.Api.Common.Caching;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Orders.Dtos;
 using ECommerce.Application.Orders.Mappings;
@@ -9,6 +10,7 @@ using ECommerce.Application.Orders.Validation;
 using ECommerce.Domain.Catalog;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ECommerce.Domain.Orders;
 namespace ECommerce.Api.Features.Orders.Controllers;
 
@@ -98,6 +100,7 @@ public sealed class OrdersController : ControllerBase
     }
 
     [HttpPost(Name = "CreateOrder")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Create an order")]
     [EndpointDescription(
         "Idempotently creates an order, decreases stock, and records stock movements atomically.")]
@@ -228,6 +231,7 @@ public sealed class OrdersController : ControllerBase
     }
 
     [HttpPatch("{id:int}/status", Name = "UpdateOrderStatus")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Update an order status")]
     [EndpointDescription(
         "Applies a valid order state transition and restores stock when a pending order is cancelled.")]

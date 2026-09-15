@@ -1,5 +1,6 @@
 using ECommerce.Api.Common.Caching;
 using ECommerce.Api.Common.Observability;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Api.Identity.Authorization;
 using ECommerce.Infrastructure;
 using ECommerce.Infrastructure.Identity;
@@ -13,6 +14,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddOutputCache(CatalogOutputCache.Configure);
 builder.Services.AddSingleton<CatalogOutputCache>();
+builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddAuthorization(options =>
@@ -46,6 +48,7 @@ app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.UseOutputCache();
 
@@ -55,7 +58,8 @@ app.MapHealthChecks(
         {
             Predicate = _ => false
         })
-    .AllowAnonymous();
+    .AllowAnonymous()
+    .DisableRateLimiting();
 
 app.MapHealthChecks(
         "/health/ready",
@@ -64,12 +68,14 @@ app.MapHealthChecks(
             Predicate = healthCheck =>
                 healthCheck.Tags.Contains("ready")
         })
-    .AllowAnonymous();
+    .AllowAnonymous()
+    .DisableRateLimiting();
 
 app.MapControllers();
 
 app.MapGroup("/api/auth")
     .WithTags("Authentication")
+    .RequireRateLimiting(ApiRateLimitPolicies.Authentication)
     .MapIdentityApi<ApplicationUser>();
 
 if (app.Environment.IsDevelopment())

@@ -1,5 +1,6 @@
 using ECommerce.Api.Common.Authentication;
 using ECommerce.Api.Common.Caching;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Carts.Dtos;
 using ECommerce.Application.Carts.Mappings;
 using ECommerce.Application.Carts.Outcomes;
@@ -11,6 +12,7 @@ using ECommerce.Application.Orders.Outcomes;
 using ECommerce.Application.Orders.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Carts.Controllers;
 
@@ -53,6 +55,7 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpPut("items/{productId:int}", Name = "SetCartItemQuantity")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Set a product quantity in the current customer's cart")]
     [EndpointDescription(
         "Creates or replaces the cart item's absolute quantity without reserving stock.")]
@@ -149,6 +152,7 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpDelete("items/{productId:int}", Name = "RemoveCartItem")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Remove a product from the current customer's cart")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ValidationProblemDetails>(
@@ -196,6 +200,7 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpDelete(Name = "ClearCart")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Remove all items from the current customer's cart")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ClearAsync(
@@ -214,6 +219,7 @@ public sealed class CartController : ControllerBase
     }
 
     [HttpPost("checkout", Name = "CheckoutCart")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Create an order from the current customer's cart")]
     [EndpointDescription(
         "Idempotently revalidates products and stock, creates the order, decreases stock, records stock movements, and removes the cart atomically.")]

@@ -4,9 +4,11 @@ using ECommerce.Application.Orders.Mappings;
 using ECommerce.Application.Orders.Outcomes;
 using ECommerce.Application.Orders.Services;
 using ECommerce.Application.Orders.Validation;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Orders.Controllers;
 
@@ -56,6 +58,7 @@ public sealed class AdminOrdersController : ControllerBase
     }
 
     [HttpPatch("{id:int}/status", Name = "UpdateOrderStatusAsAdministrator")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Update an order status as an administrator")]
     [EndpointDescription(
         "Applies a valid order state transition without customer ownership filtering.")]

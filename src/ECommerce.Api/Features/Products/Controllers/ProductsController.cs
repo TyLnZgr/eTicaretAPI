@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Caching;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Products.Dtos;
 using ECommerce.Application.Products.Mappings;
@@ -11,6 +12,7 @@ using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Products.Controllers;
 
@@ -117,6 +119,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPost(Name = "CreateProduct")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Create a product")]
     [ProducesResponseType<ProductResponse>(StatusCodes.Status201Created)]
@@ -178,6 +181,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPut("{id:int}", Name = "UpdateProduct")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Update a product")]
     [ProducesResponseType<ProductResponse>(StatusCodes.Status200OK)]
@@ -285,6 +289,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpPatch("{id:int}/stock", Name = "AdjustProductStock")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Adjust product stock")]
     [EndpointDescription(
@@ -378,6 +383,7 @@ public sealed class ProductsController : ControllerBase
     }
 
     [HttpDelete("{id:int}", Name = "DeleteProduct")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Soft-delete a product")]
     [EndpointDescription(

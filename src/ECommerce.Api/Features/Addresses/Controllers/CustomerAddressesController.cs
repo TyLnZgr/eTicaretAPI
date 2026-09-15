@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Authentication;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Addresses.Dtos;
 using ECommerce.Application.Addresses.Mappings;
 using ECommerce.Application.Addresses.Outcomes;
@@ -6,6 +7,7 @@ using ECommerce.Application.Addresses.Services;
 using ECommerce.Application.Addresses.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Addresses.Controllers;
 
@@ -74,6 +76,7 @@ public sealed class CustomerAddressesController : ControllerBase
     }
 
     [HttpPost(Name = "CreateCustomerAddress")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Create an address for the current customer")]
     [ProducesResponseType<CustomerAddressResponse>(
         StatusCodes.Status201Created)]
@@ -135,6 +138,7 @@ public sealed class CustomerAddressesController : ControllerBase
     }
 
     [HttpPut("{id:int}", Name = "UpdateCustomerAddress")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Update one of the current customer's addresses")]
     [ProducesResponseType<CustomerAddressResponse>(
         StatusCodes.Status200OK)]
@@ -186,6 +190,7 @@ public sealed class CustomerAddressesController : ControllerBase
     }
 
     [HttpDelete("{id:int}", Name = "DeleteCustomerAddress")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Delete one of the current customer's addresses")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(

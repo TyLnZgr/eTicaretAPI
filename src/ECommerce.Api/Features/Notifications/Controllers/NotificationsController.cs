@@ -1,10 +1,12 @@
 using ECommerce.Api.Common.Authentication;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Notifications.Dtos;
 using ECommerce.Application.Notifications.Services;
 using ECommerce.Application.Notifications.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Notifications.Controllers;
 
@@ -57,6 +59,7 @@ public sealed class NotificationsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/read", Name = "MarkNotificationAsRead")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Mark a notification as read")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(

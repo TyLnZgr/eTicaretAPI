@@ -1,4 +1,5 @@
 using ECommerce.Application.Common.Pagination;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Infrastructure.Operations.Outbox.Dtos;
 using ECommerce.Infrastructure.Operations.Outbox.Outcomes;
 using ECommerce.Infrastructure.Operations.Outbox.Services;
@@ -6,6 +7,7 @@ using ECommerce.Infrastructure.Operations.Outbox.Validation;
 using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Operations.Outbox.Controllers;
 
@@ -53,6 +55,7 @@ public sealed class OutboxAdminController : ControllerBase
     }
 
     [HttpPost("{id:guid}/retry", Name = "RetryOutboxMessage")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Retry a dead-lettered Outbox message")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(

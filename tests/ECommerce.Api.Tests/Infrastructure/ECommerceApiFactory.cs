@@ -15,13 +15,18 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _environment;
     private readonly bool _useTestAuthentication;
+    private readonly IReadOnlyDictionary<string, string?>
+        _configurationOverrides;
 
     public ECommerceApiFactory(
         string environment = "Testing",
-        bool useTestAuthentication = true)
+        bool useTestAuthentication = true,
+        IReadOnlyDictionary<string, string?>? configurationOverrides = null)
     {
         _environment = environment;
         _useTestAuthentication = useTestAuthentication;
+        _configurationOverrides = configurationOverrides ??
+            new Dictionary<string, string?>();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -30,12 +35,18 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
 
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
-            configuration.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["Identity:BootstrapAdminEmail"] = string.Empty,
-                    ["Outbox:Enabled"] = "false"
-                });
+            var overrides = new Dictionary<string, string?>
+            {
+                ["Identity:BootstrapAdminEmail"] = string.Empty,
+                ["Outbox:Enabled"] = "false"
+            };
+
+            foreach (var pair in _configurationOverrides)
+            {
+                overrides[pair.Key] = pair.Value;
+            }
+
+            configuration.AddInMemoryCollection(overrides);
         });
 
         builder.ConfigureServices(services =>

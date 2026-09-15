@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Caching;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Categories.Dtos;
 using ECommerce.Application.Categories.Mappings;
 using ECommerce.Application.Categories.Outcomes;
@@ -8,6 +9,7 @@ using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Categories.Controllers;
 
@@ -69,6 +71,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpPost(Name = "CreateCategory")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Create a category")]
     [ProducesResponseType<CategoryResponse>(StatusCodes.Status201Created)]
@@ -105,6 +108,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpPut("{id:int}", Name = "UpdateCategory")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Update a category")]
     [ProducesResponseType<CategoryResponse>(StatusCodes.Status200OK)]
@@ -150,6 +154,7 @@ public sealed class CategoriesController : ControllerBase
     }
 
     [HttpDelete("{id:int}", Name = "DeleteCategory")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [Authorize(Policy = AppPolicies.ManageCatalog)]
     [EndpointSummary("Delete a category")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

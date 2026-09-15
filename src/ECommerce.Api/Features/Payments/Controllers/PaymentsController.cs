@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Authentication;
+using ECommerce.Api.Common.RateLimiting;
 using ECommerce.Application.Payments.Dtos;
 using ECommerce.Application.Payments.Mappings;
 using ECommerce.Application.Payments.Outcomes;
@@ -6,6 +7,7 @@ using ECommerce.Application.Payments.Services;
 using ECommerce.Application.Payments.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ECommerce.Api.Features.Payments.Controllers;
 
@@ -56,6 +58,7 @@ public sealed class PaymentsController : ControllerBase
     }
 
     [HttpPost(Name = "ProcessOrderPayment")]
+    [EnableRateLimiting(ApiRateLimitPolicies.Mutation)]
     [EndpointSummary("Process a payment for an order")]
     [EndpointDescription(
         "Processes a tokenized payment idempotently and moves the order from Pending to Paid when successful.")]
