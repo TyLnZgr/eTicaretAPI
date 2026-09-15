@@ -1,6 +1,7 @@
 using ECommerce.Api.Identity.Authorization;
 using ECommerce.Infrastructure;
 using ECommerce.Infrastructure.Identity;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +42,23 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks(
+        "/health/live",
+        new HealthCheckOptions
+        {
+            Predicate = _ => false
+        })
+    .AllowAnonymous();
+
+app.MapHealthChecks(
+        "/health/ready",
+        new HealthCheckOptions
+        {
+            Predicate = healthCheck =>
+                healthCheck.Tags.Contains("ready")
+        })
+    .AllowAnonymous();
 
 app.MapControllers();
 

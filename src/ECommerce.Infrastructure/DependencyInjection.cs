@@ -42,6 +42,11 @@ public static class DependencyInjection
         services.AddDbContext<ECommerceDbContext>(options =>
             options.UseSqlite(connectionString));
 
+        services.AddHealthChecks()
+            .AddDbContextCheck<ECommerceDbContext>(
+                name: "database",
+                tags: ["ready"]);
+
         services.AddSingleton(TimeProvider.System);
 
         AddOutboxOptions(services, configuration);
