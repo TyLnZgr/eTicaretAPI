@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Authentication;
+using ECommerce.Api.Common.Caching;
 using ECommerce.Application.Carts.Dtos;
 using ECommerce.Application.Carts.Mappings;
 using ECommerce.Application.Carts.Outcomes;
@@ -21,13 +22,16 @@ public sealed class CartController : ControllerBase
 {
     private readonly ICartService _cartService;
     private readonly IOrderPlacementService _orderPlacementService;
+    private readonly CatalogOutputCache _catalogOutputCache;
 
     public CartController(
         ICartService cartService,
-        IOrderPlacementService orderPlacementService)
+        IOrderPlacementService orderPlacementService,
+        CatalogOutputCache catalogOutputCache)
     {
         _cartService = cartService;
         _orderPlacementService = orderPlacementService;
+        _catalogOutputCache = catalogOutputCache;
     }
 
     [HttpGet(Name = "GetCart")]
@@ -342,6 +346,8 @@ public sealed class CartController : ControllerBase
         {
             return Ok(response);
         }
+
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
 
         return CreatedAtRoute(
             "GetOrderById",

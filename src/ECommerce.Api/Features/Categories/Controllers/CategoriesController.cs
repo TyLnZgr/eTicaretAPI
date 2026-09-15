@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Caching;
 using ECommerce.Application.Categories.Dtos;
 using ECommerce.Application.Categories.Mappings;
 using ECommerce.Application.Categories.Outcomes;
@@ -6,6 +7,7 @@ using ECommerce.Application.Categories.Validation;
 using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace ECommerce.Api.Features.Categories.Controllers;
 
@@ -14,13 +16,18 @@ namespace ECommerce.Api.Features.Categories.Controllers;
 public sealed class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
+    private readonly CatalogOutputCache _catalogOutputCache;
 
-    public CategoriesController(ICategoryService categoryService)
+    public CategoriesController(
+        ICategoryService categoryService,
+        CatalogOutputCache catalogOutputCache)
     {
         _categoryService = categoryService;
+        _catalogOutputCache = catalogOutputCache;
     }
 
     [HttpGet(Name = "GetCategories")]
+    [OutputCache(PolicyName = CatalogOutputCache.CategoryPolicyName)]
     [EndpointSummary("List categories")]
     [ProducesResponseType<CategoryResponse[]>(StatusCodes.Status200OK)]
     public async Task<ActionResult<CategoryResponse[]>> GetAllAsync(
@@ -88,6 +95,8 @@ public sealed class CategoriesController : ControllerBase
             cancellationToken);
 
         var response = category.ToResponse();
+        await _catalogOutputCache.EvictCategoriesAsync(
+            cancellationToken);
 
         return CreatedAtRoute(
             "GetCategoryById",
@@ -134,6 +143,9 @@ public sealed class CategoriesController : ControllerBase
                 title: "Not Found");
         }
 
+        await _catalogOutputCache.EvictCategoriesAndProductsAsync(
+            cancellationToken);
+
         return Ok(category.ToResponse());
     }
 
@@ -159,6 +171,12 @@ public sealed class CategoriesController : ControllerBase
         var status = await _categoryService.DeleteAsync(
             id,
             cancellationToken);
+
+        if (status == CategoryDeleteStatus.Success)
+        {
+            await _catalogOutputCache.EvictCategoriesAsync(
+                cancellationToken);
+        }
 
         return status switch
         {

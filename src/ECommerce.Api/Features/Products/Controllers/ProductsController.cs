@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Caching;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Products.Dtos;
 using ECommerce.Application.Products.Mappings;
@@ -9,6 +10,7 @@ using ECommerce.Api.Identity.Authorization;
 using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace ECommerce.Api.Features.Products.Controllers;
 
@@ -17,13 +19,18 @@ namespace ECommerce.Api.Features.Products.Controllers;
 public sealed class ProductsController : ControllerBase
 {
     private readonly IProductService _productService;
+    private readonly CatalogOutputCache _catalogOutputCache;
 
-    public ProductsController(IProductService productService)
+    public ProductsController(
+        IProductService productService,
+        CatalogOutputCache catalogOutputCache)
     {
         _productService = productService;
+        _catalogOutputCache = catalogOutputCache;
     }
 
     [HttpGet(Name = "GetProducts")]
+    [OutputCache(PolicyName = CatalogOutputCache.ProductPolicyName)]
     [EndpointSummary("List products")]
     [EndpointDescription(
         "Returns a filtered, sorted, and paginated product list.")]
@@ -162,6 +169,7 @@ public sealed class ProductsController : ControllerBase
 
         var response = result.Product.ToResponse();
         Response.Headers.ETag = EntityTagHeader.Format(response.Version);
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
 
         return CreatedAtRoute(
             "GetProductById",
@@ -271,6 +279,7 @@ public sealed class ProductsController : ControllerBase
 
         var response = result.Product.ToResponse();
         Response.Headers.ETag = EntityTagHeader.Format(response.Version);
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
 
         return Ok(response);
     }
@@ -313,6 +322,12 @@ public sealed class ProductsController : ControllerBase
             request.QuantityDelta,
             request.Reason.Trim(),
             cancellationToken);
+
+        if (status == ProductStockAdjustmentStatus.Success)
+        {
+            await _catalogOutputCache.EvictProductsAsync(
+                cancellationToken);
+        }
 
         return status switch
         {
@@ -431,6 +446,8 @@ public sealed class ProductsController : ControllerBase
                 statusCode: StatusCodes.Status412PreconditionFailed,
                 title: "Precondition Failed");
         }
+
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
 
         return NoContent();
     }

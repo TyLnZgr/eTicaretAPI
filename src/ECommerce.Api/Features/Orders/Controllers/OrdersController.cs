@@ -1,4 +1,5 @@
 using ECommerce.Api.Common.Authentication;
+using ECommerce.Api.Common.Caching;
 using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Orders.Dtos;
 using ECommerce.Application.Orders.Mappings;
@@ -19,13 +20,16 @@ public sealed class OrdersController : ControllerBase
 {
     private readonly IOrderService _orderService;
     private readonly IOrderPlacementService _orderPlacementService;
+    private readonly CatalogOutputCache _catalogOutputCache;
 
     public OrdersController(
         IOrderService orderService,
-        IOrderPlacementService orderPlacementService)
+        IOrderPlacementService orderPlacementService,
+        CatalogOutputCache catalogOutputCache)
     {
         _orderService = orderService;
         _orderPlacementService = orderPlacementService;
+        _catalogOutputCache = catalogOutputCache;
     }
 
     [HttpGet(Name = "GetOrders")]
@@ -215,6 +219,8 @@ public sealed class OrdersController : ControllerBase
             return Ok(response);
         }
 
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
+
         return CreatedAtRoute(
             "GetOrderById",
             new { id = result.Order.Id },
@@ -314,6 +320,8 @@ public sealed class OrdersController : ControllerBase
                 statusCode: StatusCodes.Status500InternalServerError,
                 title: "Internal Server Error");
         }
+
+        await _catalogOutputCache.EvictProductsAsync(cancellationToken);
 
         return Ok(result.Order.ToResponse());
     }

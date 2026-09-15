@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Caching;
 using ECommerce.Api.Common.Observability;
 using ECommerce.Api.Identity.Authorization;
 using ECommerce.Infrastructure;
@@ -10,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+builder.Services.AddOutputCache(CatalogOutputCache.Configure);
+builder.Services.AddSingleton<CatalogOutputCache>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddAuthorization(options =>
@@ -44,6 +47,7 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseOutputCache();
 
 app.MapHealthChecks(
         "/health/live",
