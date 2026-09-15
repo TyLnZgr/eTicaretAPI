@@ -1,4 +1,4 @@
-using ECommerce.Api.Common.Pagination;
+using ECommerce.Application.Common.Pagination;
 using ECommerce.Api.Features.Operations.Outbox.Dtos;
 using ECommerce.Api.Features.Operations.Outbox.Outcomes;
 using ECommerce.Api.Features.Operations.Outbox.Services;

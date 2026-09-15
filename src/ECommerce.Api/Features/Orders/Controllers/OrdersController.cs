@@ -1,10 +1,10 @@
 using ECommerce.Api.Common.Authentication;
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Orders.Dtos;
-using ECommerce.Api.Features.Orders.Mappings;
-using ECommerce.Api.Features.Orders.Outcomes;
-using ECommerce.Api.Features.Orders.Services;
-using ECommerce.Api.Features.Orders.Validation;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Orders.Dtos;
+using ECommerce.Application.Orders.Mappings;
+using ECommerce.Application.Orders.Outcomes;
+using ECommerce.Application.Orders.Services;
+using ECommerce.Application.Orders.Validation;
 using ECommerce.Domain.Catalog;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

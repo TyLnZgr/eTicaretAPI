@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Notifications.Dtos;
-using ECommerce.Api.Features.Orders.IntegrationEvents;
-using ECommerce.Api.Features.Payments.Dtos;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Notifications.Dtos;
+using ECommerce.Application.Orders.IntegrationEvents;
+using ECommerce.Application.Payments.Dtos;
 using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Domain.Orders;
 using ECommerce.Domain.Payments;

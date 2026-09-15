@@ -1,6 +1,6 @@
 using System.Text.Json;
+using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Api.Data;
-using ECommerce.Api.Features.Orders.IntegrationEvents;
 using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Domain.Notifications;
 using ECommerce.Domain.Payments;

@@ -1,8 +1,8 @@
 using ECommerce.Api.Common.Authentication;
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Notifications.Dtos;
-using ECommerce.Api.Features.Notifications.Services;
-using ECommerce.Api.Features.Notifications.Validation;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Notifications.Dtos;
+using ECommerce.Application.Notifications.Services;
+using ECommerce.Application.Notifications.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

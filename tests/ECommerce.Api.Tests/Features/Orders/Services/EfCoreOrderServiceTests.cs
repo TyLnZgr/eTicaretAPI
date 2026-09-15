@@ -1,5 +1,6 @@
-using ECommerce.Api.Features.Orders.Dtos;
-using ECommerce.Api.Features.Orders.Outcomes;
+using ECommerce.Application.Orders.Dtos;
+using ECommerce.Application.Orders.Outcomes;
+using ECommerce.Application.Orders.Services;
 using ECommerce.Api.Features.Orders.Services;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;

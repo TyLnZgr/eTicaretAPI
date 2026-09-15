@@ -1,3 +1,4 @@
+using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

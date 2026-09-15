@@ -1,9 +1,9 @@
 using ECommerce.Api.Common.Authentication;
-using ECommerce.Api.Features.Payments.Dtos;
-using ECommerce.Api.Features.Payments.Mappings;
-using ECommerce.Api.Features.Payments.Outcomes;
-using ECommerce.Api.Features.Payments.Services;
-using ECommerce.Api.Features.Payments.Validation;
+using ECommerce.Application.Payments.Dtos;
+using ECommerce.Application.Payments.Mappings;
+using ECommerce.Application.Payments.Outcomes;
+using ECommerce.Application.Payments.Services;
+using ECommerce.Application.Payments.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

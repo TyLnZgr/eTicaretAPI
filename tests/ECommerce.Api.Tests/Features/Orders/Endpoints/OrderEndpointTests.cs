@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Addresses.Dtos;
-using ECommerce.Api.Features.Orders.Dtos;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Addresses.Dtos;
+using ECommerce.Application.Orders.Dtos;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Products.Dtos;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Products.Dtos;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;

@@ -1,9 +1,9 @@
 using ECommerce.Api.Common.Authentication;
-using ECommerce.Api.Features.Addresses.Dtos;
-using ECommerce.Api.Features.Addresses.Mappings;
-using ECommerce.Api.Features.Addresses.Outcomes;
-using ECommerce.Api.Features.Addresses.Services;
-using ECommerce.Api.Features.Addresses.Validation;
+using ECommerce.Application.Addresses.Dtos;
+using ECommerce.Application.Addresses.Mappings;
+using ECommerce.Application.Addresses.Outcomes;
+using ECommerce.Application.Addresses.Services;
+using ECommerce.Application.Addresses.Validation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

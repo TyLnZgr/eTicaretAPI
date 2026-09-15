@@ -1,6 +1,7 @@
 using ECommerce.Api.Data;
-using ECommerce.Api.Features.Products.Dtos;
-using ECommerce.Api.Features.Products.Outcomes;
+using ECommerce.Application.Products.Dtos;
+using ECommerce.Application.Products.Outcomes;
+using ECommerce.Application.Products.Services;
 using ECommerce.Api.Features.Products.Services;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;

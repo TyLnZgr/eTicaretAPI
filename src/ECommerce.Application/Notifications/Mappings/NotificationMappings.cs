@@ -1,0 +1,21 @@
+using ECommerce.Application.Notifications.Dtos;
+using ECommerce.Domain.Notifications;
+
+namespace ECommerce.Application.Notifications.Mappings;
+
+public static class NotificationMappings
+{
+    public static NotificationResponse ToResponse(
+        this CustomerNotification notification)
+    {
+        return new NotificationResponse(
+            notification.Id,
+            notification.OrderId,
+            notification.Type.ToString(),
+            notification.Title,
+            notification.Message,
+            notification.IsRead,
+            notification.CreatedAtUtc,
+            notification.ReadAtUtc);
+    }
+}

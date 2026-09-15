@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using ECommerce.Api.Features.Carts.Dtos;
-using ECommerce.Api.Features.Orders.Dtos;
+using ECommerce.Application.Carts.Dtos;
+using ECommerce.Application.Orders.Dtos;
 using ECommerce.Domain.Carts;
 using ECommerce.Domain.Catalog;
 using ECommerce.Domain.Orders;

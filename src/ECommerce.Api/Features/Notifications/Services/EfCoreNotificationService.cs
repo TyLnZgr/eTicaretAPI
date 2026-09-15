@@ -1,7 +1,8 @@
-using ECommerce.Api.Common.Pagination;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Notifications.Dtos;
+using ECommerce.Application.Notifications.Mappings;
+using ECommerce.Application.Notifications.Services;
 using ECommerce.Api.Data;
-using ECommerce.Api.Features.Notifications.Dtos;
-using ECommerce.Api.Features.Notifications.Mappings;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Api.Features.Notifications.Services;

@@ -1,7 +1,7 @@
 using ECommerce.Api.Common.Http;
-using ECommerce.Api.Features.Categories.Dtos;
-using ECommerce.Api.Features.Categories.Outcomes;
-using ECommerce.Api.Features.Categories.Services;
+using ECommerce.Application.Categories.Dtos;
+using ECommerce.Application.Categories.Outcomes;
+using ECommerce.Application.Categories.Services;
 using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Api.Features.Categories.Endpoints;

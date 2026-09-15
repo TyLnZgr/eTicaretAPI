@@ -1,3 +1,11 @@
+using ECommerce.Application.Addresses.Services;
+using ECommerce.Application.Products.Services;
+using ECommerce.Application.Carts.Services;
+using ECommerce.Application.Categories.Services;
+using ECommerce.Application.Notifications.Services;
+using ECommerce.Application.Orders.Services;
+using ECommerce.Application.Payments.Gateways;
+using ECommerce.Application.Payments.Services;
 using ECommerce.Api.Data;
 using ECommerce.Api.Features.Addresses.Services;
 using ECommerce.Api.Features.Carts.Services;

@@ -1,8 +1,8 @@
-using ECommerce.Api.Features.Categories.Dtos;
-using ECommerce.Api.Features.Categories.Mappings;
-using ECommerce.Api.Features.Categories.Outcomes;
-using ECommerce.Api.Features.Categories.Services;
-using ECommerce.Api.Features.Categories.Validation;
+using ECommerce.Application.Categories.Dtos;
+using ECommerce.Application.Categories.Mappings;
+using ECommerce.Application.Categories.Outcomes;
+using ECommerce.Application.Categories.Services;
+using ECommerce.Application.Categories.Validation;
 using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

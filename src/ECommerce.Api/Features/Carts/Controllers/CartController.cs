@@ -1,13 +1,13 @@
 using ECommerce.Api.Common.Authentication;
-using ECommerce.Api.Features.Carts.Dtos;
-using ECommerce.Api.Features.Carts.Mappings;
-using ECommerce.Api.Features.Carts.Outcomes;
-using ECommerce.Api.Features.Carts.Services;
-using ECommerce.Api.Features.Carts.Validation;
-using ECommerce.Api.Features.Orders.Dtos;
-using ECommerce.Api.Features.Orders.Mappings;
-using ECommerce.Api.Features.Orders.Outcomes;
-using ECommerce.Api.Features.Orders.Services;
+using ECommerce.Application.Carts.Dtos;
+using ECommerce.Application.Carts.Mappings;
+using ECommerce.Application.Carts.Outcomes;
+using ECommerce.Application.Carts.Services;
+using ECommerce.Application.Carts.Validation;
+using ECommerce.Application.Orders.Dtos;
+using ECommerce.Application.Orders.Mappings;
+using ECommerce.Application.Orders.Outcomes;
+using ECommerce.Application.Orders.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

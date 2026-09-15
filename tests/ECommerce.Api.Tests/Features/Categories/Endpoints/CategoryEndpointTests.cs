@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using ECommerce.Api.Features.Categories.Dtos;
+using ECommerce.Application.Categories.Dtos;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;

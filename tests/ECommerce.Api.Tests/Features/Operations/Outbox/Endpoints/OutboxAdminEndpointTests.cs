@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
-using ECommerce.Api.Common.Pagination;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Api.Features.Operations.Outbox.Dtos;
 using ECommerce.Api.Infrastructure.Outbox;
 using ECommerce.Api.Tests.Common.Http;

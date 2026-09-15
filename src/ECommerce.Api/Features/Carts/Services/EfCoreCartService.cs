@@ -1,6 +1,7 @@
+using ECommerce.Application.Carts.Outcomes;
+using ECommerce.Application.Carts.Services;
+using ECommerce.Application.Carts.Validation;
 using ECommerce.Api.Data;
-using ECommerce.Api.Features.Carts.Outcomes;
-using ECommerce.Api.Features.Carts.Validation;
 using ECommerce.Domain.Carts;
 using Microsoft.EntityFrameworkCore;
 

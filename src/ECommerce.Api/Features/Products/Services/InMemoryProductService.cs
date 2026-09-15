@@ -1,6 +1,7 @@
-using ECommerce.Api.Common.Pagination;
-using ECommerce.Api.Features.Products.Dtos;
-using ECommerce.Api.Features.Products.Outcomes;
+using ECommerce.Application.Common.Pagination;
+using ECommerce.Application.Products.Dtos;
+using ECommerce.Application.Products.Outcomes;
+using ECommerce.Application.Products.Services;
 using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Api.Features.Products.Services;

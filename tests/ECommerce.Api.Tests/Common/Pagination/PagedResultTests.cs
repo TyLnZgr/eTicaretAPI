@@ -1,4 +1,4 @@
-using ECommerce.Api.Common.Pagination;
+using ECommerce.Application.Common.Pagination;
 
 namespace ECommerce.Api.Tests.Common.Pagination;
 
