@@ -1,8 +1,8 @@
 using ECommerce.Application.Common.Pagination;
-using ECommerce.Api.Features.Operations.Outbox.Dtos;
-using ECommerce.Api.Features.Operations.Outbox.Outcomes;
-using ECommerce.Api.Features.Operations.Outbox.Services;
-using ECommerce.Api.Features.Operations.Outbox.Validation;
+using ECommerce.Infrastructure.Operations.Outbox.Dtos;
+using ECommerce.Infrastructure.Operations.Outbox.Outcomes;
+using ECommerce.Infrastructure.Operations.Outbox.Services;
+using ECommerce.Infrastructure.Operations.Outbox.Validation;
 using ECommerce.Api.Identity.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

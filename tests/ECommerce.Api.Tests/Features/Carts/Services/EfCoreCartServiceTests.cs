@@ -1,6 +1,6 @@
 using ECommerce.Application.Carts.Outcomes;
 using ECommerce.Application.Carts.Services;
-using ECommerce.Api.Features.Carts.Services;
+using ECommerce.Infrastructure.Persistence.Services.Carts;
 using ECommerce.Domain.Carts;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;

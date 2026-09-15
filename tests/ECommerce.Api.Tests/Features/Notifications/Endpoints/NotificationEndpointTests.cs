@@ -5,7 +5,7 @@ using ECommerce.Application.Common.Pagination;
 using ECommerce.Application.Notifications.Dtos;
 using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Application.Payments.Dtos;
-using ECommerce.Api.Infrastructure.Outbox;
+using ECommerce.Infrastructure.Messaging.Outbox;
 using ECommerce.Domain.Orders;
 using ECommerce.Domain.Payments;
 using ECommerce.Api.Tests.Common.Http;

@@ -1,8 +1,8 @@
-using ECommerce.Api.Data;
+using ECommerce.Infrastructure.Persistence;
 using ECommerce.Application.Products.Dtos;
 using ECommerce.Application.Products.Outcomes;
 using ECommerce.Application.Products.Services;
-using ECommerce.Api.Features.Products.Services;
+using ECommerce.Infrastructure.Persistence.Services.Products;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

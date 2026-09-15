@@ -1,4 +1,4 @@
-using ECommerce.Api.Data;
+using ECommerce.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 

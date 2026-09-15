@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ECommerce.Api.Identity;
+using ECommerce.Infrastructure.Identity;
 using ECommerce.Api.Identity.Authorization;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Identity;

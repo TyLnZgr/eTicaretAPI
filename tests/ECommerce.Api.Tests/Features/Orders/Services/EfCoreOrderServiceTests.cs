@@ -1,7 +1,7 @@
 using ECommerce.Application.Orders.Dtos;
 using ECommerce.Application.Orders.Outcomes;
 using ECommerce.Application.Orders.Services;
-using ECommerce.Api.Features.Orders.Services;
+using ECommerce.Infrastructure.Persistence.Services.Orders;
 using ECommerce.Domain.Catalog;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;

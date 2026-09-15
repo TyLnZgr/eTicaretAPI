@@ -7,7 +7,7 @@ using System.Text.Json;
 using ECommerce.Application.Orders.Dtos;
 using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Application.Payments.Dtos;
-using ECommerce.Api.Infrastructure.Outbox;
+using ECommerce.Infrastructure.Messaging.Outbox;
 using ECommerce.Api.Tests.Common.Http;
 using ECommerce.Api.Tests.Infrastructure;
 using ECommerce.Domain.Orders;

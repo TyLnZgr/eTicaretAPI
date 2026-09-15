@@ -1,4 +1,4 @@
-using ECommerce.Api.Identity;
+using ECommerce.Infrastructure.Identity;
 using ECommerce.Domain.Customers;
 
 namespace ECommerce.Api.Tests.Infrastructure;

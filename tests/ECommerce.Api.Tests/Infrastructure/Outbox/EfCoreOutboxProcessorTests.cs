@@ -1,5 +1,5 @@
 using ECommerce.Application.Orders.IntegrationEvents;
-using ECommerce.Api.Infrastructure.Outbox;
+using ECommerce.Infrastructure.Messaging.Outbox;
 using ECommerce.Api.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;

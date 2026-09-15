@@ -1,5 +1,5 @@
 using System.Data.Common;
-using ECommerce.Api.Data;
+using ECommerce.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
