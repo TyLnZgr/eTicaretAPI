@@ -118,28 +118,25 @@ public sealed class EfCoreOrderServiceTests
             }
         };
 
+        database.DbContext.Users.Add(TestEntityFactory.CreateUser(
+            customerId,
+            "customer@example.com"));
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
         var order = new Order
         {
             CustomerId = customerId,
             CustomerEmail = "customer@example.com",
-            TotalAmount = 2000m,
-            CreatedAtUtc = DateTime.UtcNow,
-            Items = new List<OrderItem>
-            {
-                new()
-                {
-                    Product = product,
-                    ProductName = product.Name,
-                    UnitPrice = product.Price,
-                    Quantity = 2,
-                    LineTotal = 2000m
-                }
-            }
+            CreatedAtUtc = DateTime.UtcNow
         };
 
-        database.DbContext.Users.Add(TestEntityFactory.CreateUser(
-            customerId,
-            "customer@example.com"));
+        order.AddItem(
+            product.Id,
+            product.Name,
+            product.Price,
+            quantity: 2);
+
         database.DbContext.Orders.Add(order);
         await database.DbContext.SaveChangesAsync();
 

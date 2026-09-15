@@ -1,4 +1,5 @@
 using ECommerce.Application.Products.Dtos;
+using ECommerce.Domain.Catalog;
 
 namespace ECommerce.Application.Products.Validation;
 
@@ -155,7 +156,8 @@ public static class ProductRequestValidator
                 "Stock movement reason is required."
             };
         }
-        else if (request.Reason.Trim().Length > 200)
+        else if (request.Reason.Trim().Length >
+                 StockMovement.MaxReasonLength)
         {
             errors["reason"] = new[]
             {
@@ -180,7 +182,7 @@ public static class ProductRequestValidator
                 "Product name is required."
             };
         }
-        else if (name.Trim().Length > 200)
+        else if (name.Trim().Length > Product.MaxNameLength)
         {
             errors["name"] = new[]
             {

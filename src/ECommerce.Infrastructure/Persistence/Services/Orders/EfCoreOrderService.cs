@@ -177,18 +177,20 @@ public sealed class EfCoreOrderService : IOrderService
                 OrderStatusUpdateStatus.OrderNotFound);
         }
 
-        if (!order.CanTransitionTo(newStatus))
+        var currentStatus = order.Status;
+
+        if (!order.TryTransitionTo(newStatus))
         {
             await transaction.RollbackAsync(cancellationToken);
 
             return new OrderStatusUpdateResult(
                 OrderStatusUpdateStatus.InvalidTransition,
-                CurrentStatus: order.Status);
+                CurrentStatus: currentStatus);
         }
 
         var updateQuery = _dbContext.Orders
             .Where(candidate => candidate.Id == id)
-            .Where(candidate => candidate.Status == order.Status);
+            .Where(candidate => candidate.Status == currentStatus);
 
         if (customerId.HasValue)
         {
@@ -200,7 +202,7 @@ public sealed class EfCoreOrderService : IOrderService
             .ExecuteUpdateAsync(
                 setters => setters.SetProperty(
                     candidate => candidate.Status,
-                    newStatus),
+                    order.Status),
                 cancellationToken);
 
         if (affectedOrders == 0)
@@ -209,7 +211,7 @@ public sealed class EfCoreOrderService : IOrderService
 
             return new OrderStatusUpdateResult(
                 OrderStatusUpdateStatus.ConcurrencyConflict,
-                CurrentStatus: order.Status);
+                CurrentStatus: currentStatus);
         }
 
         if (newStatus == OrderStatus.Cancelled)
@@ -251,7 +253,7 @@ public sealed class EfCoreOrderService : IOrderService
 
                     return new OrderStatusUpdateResult(
                         OrderStatusUpdateStatus.StockLimitExceeded,
-                        CurrentStatus: order.Status,
+                        CurrentStatus: currentStatus,
                         ProductId: productId);
                 }
 
@@ -261,14 +263,12 @@ public sealed class EfCoreOrderService : IOrderService
                     .Select(product => product.StockQuantity)
                     .SingleAsync(cancellationToken);
 
-                _dbContext.StockMovements.Add(new StockMovement
-                {
-                    ProductId = productId,
-                    QuantityDelta = item.Quantity,
-                    StockQuantityAfter = stockQuantityAfter,
-                    Reason = $"Order {order.Id} cancellation",
-                    CreatedAtUtc = movementTime
-                });
+                _dbContext.StockMovements.Add(new StockMovement(
+                    productId,
+                    item.Quantity,
+                    stockQuantityAfter,
+                    $"Order {order.Id} cancellation",
+                    movementTime));
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);

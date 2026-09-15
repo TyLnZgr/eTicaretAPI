@@ -34,7 +34,7 @@ public sealed class OrderItemConfiguration
 
         builder.Property(item => item.ProductName)
             .IsRequired()
-            .HasMaxLength(200);
+            .HasMaxLength(OrderItem.MaxProductNameLength);
 
         builder.Property(item => item.UnitPrice)
             .HasPrecision(18, 2);

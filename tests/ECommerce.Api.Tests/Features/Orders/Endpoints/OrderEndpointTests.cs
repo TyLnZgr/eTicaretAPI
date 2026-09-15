@@ -469,18 +469,21 @@ public sealed class OrderEndpointTests
                 }
             };
 
-            var order = CreateOrder(
-                customerId,
-                "customer@example.com");
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
 
-            order.Items.Add(new OrderItem
+            var order = new Order
             {
-                Product = product,
-                ProductName = product.Name,
-                UnitPrice = product.Price,
-                Quantity = 2,
-                LineTotal = 1000m
-            });
+                CustomerId = customerId,
+                CustomerEmail = "customer@example.com",
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            order.AddItem(
+                product.Id,
+                product.Name,
+                product.Price,
+                quantity: 2);
 
             dbContext.Orders.Add(order);
             await dbContext.SaveChangesAsync();

@@ -94,7 +94,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(order => order.CustomerEmail)
             .IsRequired()
-            .HasMaxLength(254);
+            .HasMaxLength(Order.MaxCustomerEmailLength);
 
         builder.Property(order => order.Status)
             .HasConversion<int>();
@@ -104,7 +104,7 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(order => order.Currency)
             .IsRequired()
-            .HasMaxLength(3)
+            .HasMaxLength(Order.CurrencyLength)
             .IsFixedLength()
             .HasDefaultValue("TRY");
 
@@ -151,6 +151,9 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Navigation(order => order.ShippingAddress)
             .IsRequired(false);
+
+        builder.Navigation(order => order.Items)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasOne<ApplicationUser>()
             .WithMany(customer => customer.Orders)

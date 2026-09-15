@@ -33,7 +33,7 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.Property(product => product.Name)
             .IsRequired()
-            .HasMaxLength(200);
+            .HasMaxLength(Product.MaxNameLength);
 
         builder.Property(product => product.Price)
             .HasPrecision(18, 2);
@@ -43,5 +43,8 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
      .HasForeignKey(product => product.CategoryId)
      .OnDelete(DeleteBehavior.Restrict)
      .IsRequired();
+
+        builder.Navigation(product => product.StockMovements)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

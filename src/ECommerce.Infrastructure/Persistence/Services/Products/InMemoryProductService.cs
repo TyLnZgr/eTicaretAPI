@@ -31,35 +31,32 @@ public class InMemoryProductService : IProductService
         _timeProvider = timeProvider;
         _products = new List<Product>
         {
-            new Product
+            new Product(
+                "Mechanical Keyboard",
+                2499.90m,
+                25,
+                _categories[1],
+                true)
             {
                 Id = 1,
-                Name = "Mechanical Keyboard",
-                Price = 2499.90m,
-                StockQuantity = 25,
-                CategoryId = 1,
-                Category = _categories[1],
-                IsActive = true
             },
-            new Product
+            new Product(
+                "Wireless Mouse",
+                1299.50m,
+                40,
+                _categories[1],
+                true)
             {
                 Id = 2,
-                Name = "Wireless Mouse",
-                Price = 1299.50m,
-                StockQuantity = 40,
-                CategoryId = 1,
-                Category = _categories[1],
-                IsActive = true
             },
-            new Product
+            new Product(
+                "4K Monitor",
+                12999.00m,
+                0,
+                _categories[1],
+                false)
             {
                 Id = 3,
-                Name = "4K Monitor",
-                Price = 12999.00m,
-                StockQuantity = 0,
-                CategoryId = 1,
-                Category = _categories[1],
-                IsActive = false
             }
         };
     }
@@ -232,31 +229,25 @@ public class InMemoryProductService : IProductService
             nextId = _products.Max(candidate => candidate.Id) + 1;
         }
 
-        var product = new Product
+        var product = new Product(
+            name,
+            price,
+            stockQuantity,
+            category,
+            isActive)
         {
             Id = nextId,
-            Name = name,
-            Price = price,
-            StockQuantity = stockQuantity,
-            CategoryId = categoryId,
-            Category = category,
-            IsActive = isActive
         };
 
         _products.Add(product);
 
-        if (stockQuantity > 0)
+        var initialMovement = product.RecordInitialStock(
+            _timeProvider.GetUtcNow().UtcDateTime);
+
+        if (initialMovement is not null)
         {
-            _stockMovements.Add(new StockMovement
-            {
-                Id = NextStockMovementId(),
-                ProductId = product.Id,
-                Product = product,
-                QuantityDelta = stockQuantity,
-                StockQuantityAfter = stockQuantity,
-                Reason = "Initial stock",
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-            });
+            initialMovement.Id = NextStockMovementId();
+            _stockMovements.Add(initialMovement);
         }
 
         return Task.FromResult(
@@ -291,11 +282,7 @@ public class InMemoryProductService : IProductService
                     ProductMutationStatus.CategoryNotFound));
         }
 
-        product.Name = name;
-        product.Price = price;
-        product.CategoryId = categoryId;
-        product.Category = category;
-        product.IsActive = isActive;
+        product.UpdateDetails(name, price, category, isActive);
 
         return Task.FromResult(
             new ProductMutationResult(
@@ -336,36 +323,18 @@ public class InMemoryProductService : IProductService
                     ProductStockAdjustmentStatus.ProductNotFound);
             }
 
-            var requestedStock =
-                (long)product.StockQuantity + quantityDelta;
+            var result = product.AdjustStock(
+                quantityDelta,
+                reason,
+                _timeProvider.GetUtcNow().UtcDateTime);
 
-            if (requestedStock < 0)
+            if (result.Movement is not null)
             {
-                return Task.FromResult(
-                    ProductStockAdjustmentStatus.InsufficientStock);
+                result.Movement.Id = NextStockMovementId();
+                _stockMovements.Add(result.Movement);
             }
 
-            if (requestedStock > int.MaxValue)
-            {
-                return Task.FromResult(
-                    ProductStockAdjustmentStatus.StockLimitExceeded);
-            }
-
-            product.StockQuantity = (int)requestedStock;
-
-            _stockMovements.Add(new StockMovement
-            {
-                Id = NextStockMovementId(),
-                ProductId = product.Id,
-                Product = product,
-                QuantityDelta = quantityDelta,
-                StockQuantityAfter = product.StockQuantity,
-                Reason = reason,
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-            });
-
-            return Task.FromResult(
-                ProductStockAdjustmentStatus.Success);
+            return Task.FromResult(ToApplicationStatus(result.Status));
         }
     }
 
@@ -403,6 +372,25 @@ public class InMemoryProductService : IProductService
         return _stockMovements.Count == 0
             ? 1
             : _stockMovements.Max(movement => movement.Id) + 1;
+    }
+
+    private static ProductStockAdjustmentStatus ToApplicationStatus(
+        ProductStockChangeStatus status)
+    {
+        return status switch
+        {
+            ProductStockChangeStatus.Success =>
+                ProductStockAdjustmentStatus.Success,
+            ProductStockChangeStatus.InvalidQuantityDelta =>
+                ProductStockAdjustmentStatus.InvalidQuantityDelta,
+            ProductStockChangeStatus.InvalidReason =>
+                ProductStockAdjustmentStatus.InvalidReason,
+            ProductStockChangeStatus.InsufficientStock =>
+                ProductStockAdjustmentStatus.InsufficientStock,
+            ProductStockChangeStatus.StockLimitExceeded =>
+                ProductStockAdjustmentStatus.StockLimitExceeded,
+            _ => throw new ArgumentOutOfRangeException(nameof(status))
+        };
     }
 
     private static ProductResponse ToResponse(Product product)

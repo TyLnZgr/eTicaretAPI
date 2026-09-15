@@ -196,26 +196,15 @@ public class EfCoreProductService : IProductService
                 ProductMutationStatus.CategoryNotFound);
         }
 
-        var product = new Product
-        {
-            Name = name,
-            Price = price,
-            StockQuantity = stockQuantity,
-            CategoryId = categoryId,
-            Category = category,
-            IsActive = isActive
-        };
+        var product = new Product(
+            name,
+            price,
+            stockQuantity,
+            category,
+            isActive);
 
-        if (stockQuantity > 0)
-        {
-            product.StockMovements.Add(new StockMovement
-            {
-                QuantityDelta = stockQuantity,
-                StockQuantityAfter = stockQuantity,
-                Reason = "Initial stock",
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-            });
-        }
+        product.RecordInitialStock(
+            _timeProvider.GetUtcNow().UtcDateTime);
 
         _dbContext.Products.Add(product);
 
@@ -255,11 +244,7 @@ public class EfCoreProductService : IProductService
                 ProductMutationStatus.CategoryNotFound);
         }
 
-        product.Name = name;
-        product.Price = price;
-        product.CategoryId = categoryId;
-        product.Category = category;
-        product.IsActive = isActive;
+        product.UpdateDetails(name, price, category, isActive);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -312,14 +297,12 @@ public class EfCoreProductService : IProductService
                 .Select(product => product.StockQuantity)
                 .SingleAsync(cancellationToken);
 
-            _dbContext.StockMovements.Add(new StockMovement
-            {
-                ProductId = id,
-                QuantityDelta = quantityDelta,
-                StockQuantityAfter = stockQuantityAfter,
-                Reason = reason,
-                CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-            });
+            _dbContext.StockMovements.Add(new StockMovement(
+                id,
+                quantityDelta,
+                stockQuantityAfter,
+                reason,
+                _timeProvider.GetUtcNow().UtcDateTime));
 
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

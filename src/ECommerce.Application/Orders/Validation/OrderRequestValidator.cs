@@ -6,9 +6,6 @@ namespace ECommerce.Application.Orders.Validation;
 
 public static class OrderRequestValidator
 {
-    private const int MaximumItemCount = 100;
-    private const int MaximumQuantityPerItem = 1_000;
-
     public static Dictionary<string, string[]> ValidateCreate(
         CreateOrderRequest request)
     {
@@ -32,11 +29,11 @@ public static class OrderRequestValidator
             return errors;
         }
 
-        if (request.Items.Count > MaximumItemCount)
+        if (request.Items.Count > Order.MaxItemCount)
         {
             errors["items"] = new[]
             {
-                $"An order cannot contain more than {MaximumItemCount} items."
+                $"An order cannot contain more than {Order.MaxItemCount} items."
             };
         }
 
@@ -52,11 +49,11 @@ public static class OrderRequestValidator
                 };
             }
 
-            if (item.Quantity < 1 || item.Quantity > MaximumQuantityPerItem)
+            if (item.Quantity < 1 || item.Quantity > OrderItem.MaxQuantity)
             {
                 errors[$"items[{index}].quantity"] = new[]
                 {
-                    $"Quantity must be between 1 and {MaximumQuantityPerItem}."
+                    $"Quantity must be between 1 and {OrderItem.MaxQuantity}."
                 };
             }
         }

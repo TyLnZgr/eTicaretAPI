@@ -30,7 +30,7 @@ public sealed class StockMovementConfiguration
 
         builder.Property(movement => movement.Reason)
             .IsRequired()
-            .HasMaxLength(200);
+            .HasMaxLength(StockMovement.MaxReasonLength);
 
         builder.Property(movement => movement.CreatedAtUtc)
             .IsRequired();

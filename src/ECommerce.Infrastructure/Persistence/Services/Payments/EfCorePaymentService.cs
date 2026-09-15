@@ -127,7 +127,9 @@ public sealed class EfCorePaymentService : IPaymentService
                     PaymentProcessingStatus.PaymentInProgress);
             }
 
-            if (order.Status != OrderStatus.Pending)
+            if (!Order.IsTransitionAllowed(
+                    order.Status,
+                    OrderStatus.PaymentProcessing))
             {
                 return new PaymentProcessingResult(
                     PaymentProcessingStatus.OrderNotPayable);
@@ -251,6 +253,15 @@ public sealed class EfCorePaymentService : IPaymentService
             gatewayResult.Status == PaymentGatewayStatus.Succeeded
                 ? OrderStatus.Paid
                 : OrderStatus.Pending;
+
+        if (!Order.IsTransitionAllowed(
+                OrderStatus.PaymentProcessing,
+                targetOrderStatus))
+        {
+            throw new InvalidOperationException(
+                $"Order status cannot transition from " +
+                $"{OrderStatus.PaymentProcessing} to {targetOrderStatus}.");
+        }
 
         var affectedOrders = await _dbContext.Orders
             .Where(order =>

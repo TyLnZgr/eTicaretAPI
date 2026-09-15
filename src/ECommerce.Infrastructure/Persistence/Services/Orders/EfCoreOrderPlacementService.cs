@@ -203,14 +203,9 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
             }
         }
 
-        var order = new Order
-        {
-            CustomerId = customerId,
-            CustomerEmail = customerEmail.Trim().ToLowerInvariant(),
-            CreatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime
-        };
-
-        order.SetShippingAddress(
+        var order = new Order(
+            customerId,
+            customerEmail,
             new OrderAddressSnapshot(
                 shippingAddress.RecipientFullName,
                 shippingAddress.PhoneNumber,
@@ -219,24 +214,20 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
                 shippingAddress.District,
                 shippingAddress.City,
                 shippingAddress.PostalCode,
-                shippingAddress.CountryCode));
+                shippingAddress.CountryCode),
+            _timeProvider.GetUtcNow().UtcDateTime);
 
         foreach (var requestedItem in requestedItems)
         {
             var product = products[requestedItem.ProductId];
-            var lineTotal = product.Price * requestedItem.Quantity;
-
-            order.Items.Add(new OrderItem
-            {
-                ProductId = product.Id,
-                ProductName = product.Name,
-                UnitPrice = product.Price,
-                Quantity = requestedItem.Quantity,
-                LineTotal = lineTotal
-            });
-
-            order.TotalAmount += lineTotal;
+            order.AddItem(
+                product.Id,
+                product.Name,
+                product.Price,
+                requestedItem.Quantity);
         }
+
+        order.EnsureReadyForPlacement();
 
         var stockMovements = new List<StockMovement>();
 
@@ -287,14 +278,12 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
                 .Select(product => product.StockQuantity)
                 .SingleAsync(cancellationToken);
 
-            stockMovements.Add(new StockMovement
-            {
-                ProductId = requestedItem.ProductId,
-                QuantityDelta = -requestedItem.Quantity,
-                StockQuantityAfter = stockQuantityAfter,
-                Reason = "Order placement",
-                CreatedAtUtc = order.CreatedAtUtc
-            });
+            stockMovements.Add(new StockMovement(
+                requestedItem.ProductId,
+                -requestedItem.Quantity,
+                stockQuantityAfter,
+                "Order placement",
+                order.CreatedAtUtc));
         }
 
         _dbContext.Orders.Add(order);
