@@ -6,4 +6,5 @@ public sealed record OrderCreationResult(
     OrderCreationStatus Status,
     Order? Order = null,
     int? ProductId = null,
-    int? AddressId = null);
+    int? AddressId = null,
+    bool WasReplay = false);

@@ -403,9 +403,10 @@ public sealed class CartEndpointTests
         });
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/cart/checkout",
-            new CheckoutCartRequest { AddressId = addressId });
+        using var response = await SendCheckoutAsync(
+            client,
+            addressId,
+            "checkout-empty-001");
 
         // Assert
         await ProblemDetailsAssertions.AssertProblemAsync(
@@ -465,9 +466,10 @@ public sealed class CartEndpointTests
         });
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/cart/checkout",
-            new CheckoutCartRequest { AddressId = addressId });
+        using var response = await SendCheckoutAsync(
+            client,
+            addressId,
+            "checkout-valid-001");
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -558,9 +560,10 @@ public sealed class CartEndpointTests
         });
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/cart/checkout",
-            new CheckoutCartRequest { AddressId = addressId });
+        using var response = await SendCheckoutAsync(
+            client,
+            addressId,
+            "checkout-stock-001");
 
         // Assert
         await ProblemDetailsAssertions.AssertProblemAsync(
@@ -587,7 +590,7 @@ public sealed class CartEndpointTests
     }
 
     [Fact]
-    public async Task CheckoutAsync_WhenRepeated_CreatesOnlyOneOrder()
+    public async Task CheckoutAsync_WhenSameRequestIsRepeated_ReplaysOrder()
     {
         // Arrange
         using var factory = new ECommerceApiFactory();
@@ -620,21 +623,27 @@ public sealed class CartEndpointTests
         });
 
         // Act
-        using var firstResponse = await client.PostAsJsonAsync(
-            "/api/cart/checkout",
-            new CheckoutCartRequest { AddressId = addressId });
-        using var secondResponse = await client.PostAsJsonAsync(
-            "/api/cart/checkout",
-            new CheckoutCartRequest { AddressId = addressId });
+        using var firstResponse = await SendCheckoutAsync(
+            client,
+            addressId,
+            "checkout-replay-001");
+        using var replayResponse = await SendCheckoutAsync(
+            client,
+            addressId,
+            "checkout-replay-001");
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
 
-        await ProblemDetailsAssertions.AssertProblemAsync(
-            secondResponse,
-            HttpStatusCode.Conflict,
-            "Conflict",
-            "The cart is empty.");
+        var firstOrder = await firstResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+        var replayedOrder = await replayResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+
+        Assert.NotNull(firstOrder);
+        Assert.NotNull(replayedOrder);
+        Assert.Equal(firstOrder.Id, replayedOrder.Id);
 
         await factory.SeedDatabaseAsync(async dbContext =>
         {
@@ -649,6 +658,90 @@ public sealed class CartEndpointTests
 
             Assert.Equal(9, stockQuantity);
         });
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_WhenKeyIsReusedForDifferentAddress_ReturnsConflict()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+
+        var customerId = Guid.NewGuid();
+        using var client = factory.CreateCustomerClient(customerId);
+        var firstAddressId = 0;
+        var secondAddressId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var product = CreateProduct(
+                "Keyboard",
+                stockQuantity: 10);
+            var firstAddress = TestEntityFactory.CreateAddress(
+                customerId,
+                addressLine1: "Home Street No: 10");
+            var secondAddress = TestEntityFactory.CreateAddress(
+                customerId,
+                addressLine1: "Office Street No: 20",
+                isDefault: false);
+
+            dbContext.Users.Add(TestEntityFactory.CreateUser(
+                customerId,
+                "customer@example.com"));
+            dbContext.CustomerAddresses.AddRange(
+                firstAddress,
+                secondAddress);
+            dbContext.Products.Add(product);
+
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Carts.Add(CreateCart(customerId, product));
+            await dbContext.SaveChangesAsync();
+
+            firstAddressId = firstAddress.Id;
+            secondAddressId = secondAddress.Id;
+        });
+
+        using var firstResponse = await SendCheckoutAsync(
+            client,
+            firstAddressId,
+            "checkout-conflict-001");
+
+        // Act
+        using var conflictResponse = await SendCheckoutAsync(
+            client,
+            secondAddressId,
+            "checkout-conflict-001");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            conflictResponse,
+            HttpStatusCode.Conflict,
+            "Conflict",
+            "The Idempotency-Key was already used with a different order request.");
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.Equal(1, await dbContext.Orders.CountAsync());
+            Assert.Equal(1, await dbContext.StockMovements.CountAsync());
+        });
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_WithoutIdempotencyKey_ReturnsValidationProblem()
+    {
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateCustomerClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/cart/checkout",
+            new CheckoutCartRequest { AddressId = 1 });
+
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "Idempotency-Key",
+            "Idempotency-Key must be between 8 and 100 characters and contain " +
+            "only letters, digits, hyphens, underscores, dots, or colons.");
     }
 
     private static Product CreateProduct(
@@ -679,5 +772,23 @@ public sealed class CartEndpointTests
         var cart = new Cart(customerId, now);
         cart.SetItemQuantity(product.Id, quantity, now);
         return cart;
+    }
+
+    private static async Task<HttpResponseMessage> SendCheckoutAsync(
+        HttpClient client,
+        int addressId,
+        string idempotencyKey)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/cart/checkout")
+        {
+            Content = JsonContent.Create(
+                new CheckoutCartRequest { AddressId = addressId })
+        };
+
+        message.Headers.Add("Idempotency-Key", idempotencyKey);
+
+        return await client.SendAsync(message);
     }
 }

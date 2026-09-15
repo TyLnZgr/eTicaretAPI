@@ -1,5 +1,6 @@
 using ECommerce.Application.Carts.Dtos;
 using ECommerce.Domain.Carts;
+using ECommerce.Domain.Orders;
 
 namespace ECommerce.Application.Carts.Validation;
 
@@ -32,9 +33,21 @@ public static class CartRequestValidator
     }
 
     public static Dictionary<string, string[]> ValidateCheckout(
+        string? idempotencyKey,
         CheckoutCartRequest request)
     {
         var errors = new Dictionary<string, string[]>();
+
+        if (!Order.IsIdempotencyKeyValid(idempotencyKey))
+        {
+            errors["Idempotency-Key"] = new[]
+            {
+                $"Idempotency-Key must be between " +
+                $"{Order.IdempotencyKeyMinLength} and " +
+                $"{Order.IdempotencyKeyMaxLength} characters and contain " +
+                "only letters, digits, hyphens, underscores, dots, or colons."
+            };
+        }
 
         if (request.AddressId <= 0)
         {

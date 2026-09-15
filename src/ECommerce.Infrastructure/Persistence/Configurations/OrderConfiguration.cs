@@ -31,6 +31,27 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
                     "CAST(\"TotalAmount\" AS NUMERIC) > 0");
 
                 tableBuilder.HasCheckConstraint(
+                    "CK_Orders_IdempotencyData_Complete",
+                    "(\"IdempotencyKey\" IS NULL AND " +
+                    "\"RequestFingerprint\" IS NULL) OR " +
+                    "(\"IdempotencyKey\" IS NOT NULL AND " +
+                    "\"RequestFingerprint\" IS NOT NULL)");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_IdempotencyKey_Valid",
+                    "\"IdempotencyKey\" IS NULL OR " +
+                    $"length(\"IdempotencyKey\") BETWEEN " +
+                    $"{Order.IdempotencyKeyMinLength} AND " +
+                    $"{Order.IdempotencyKeyMaxLength}");
+
+                tableBuilder.HasCheckConstraint(
+                    "CK_Orders_RequestFingerprint_Valid",
+                    "\"RequestFingerprint\" IS NULL OR " +
+                    $"(length(\"RequestFingerprint\") = " +
+                    $"{Order.RequestFingerprintLength} AND " +
+                    "\"RequestFingerprint\" = upper(\"RequestFingerprint\"))");
+
+                tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingAddress_Complete",
                     "(\"ShippingRecipientFullName\" IS NULL AND " +
                     "\"ShippingPhoneNumber\" IS NULL AND " +
@@ -125,6 +146,13 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(order => order.CreatedAtUtc)
             .IsRequired();
 
+        builder.Property(order => order.IdempotencyKey)
+            .HasMaxLength(Order.IdempotencyKeyMaxLength);
+
+        builder.Property(order => order.RequestFingerprint)
+            .HasMaxLength(Order.RequestFingerprintLength)
+            .IsFixedLength();
+
         builder.OwnsOne(
             order => order.ShippingAddress,
             shippingAddress =>
@@ -187,5 +215,13 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             order.CustomerId,
             order.CreatedAtUtc
         });
+
+        builder.HasIndex(order => new
+        {
+            order.CustomerId,
+            order.IdempotencyKey
+        })
+            .IsUnique()
+            .HasFilter("\"IdempotencyKey\" IS NOT NULL");
     }
 }

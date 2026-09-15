@@ -7,9 +7,21 @@ namespace ECommerce.Application.Orders.Validation;
 public static class OrderRequestValidator
 {
     public static Dictionary<string, string[]> ValidateCreate(
+        string? idempotencyKey,
         CreateOrderRequest request)
     {
         var errors = new Dictionary<string, string[]>();
+
+        if (!Order.IsIdempotencyKeyValid(idempotencyKey))
+        {
+            errors["Idempotency-Key"] = new[]
+            {
+                $"Idempotency-Key must be between " +
+                $"{Order.IdempotencyKeyMinLength} and " +
+                $"{Order.IdempotencyKeyMaxLength} characters and contain " +
+                "only letters, digits, hyphens, underscores, dots, or colons."
+            };
+        }
 
         if (request.AddressId <= 0)
         {

@@ -158,11 +158,14 @@ public sealed class OpenApiDocumentTests
         Assert.True(
             setCartItemResponses.TryGetProperty("409", out _));
 
-        var checkoutCartResponses = paths
+        var checkoutCart = paths
             .GetProperty("/api/cart/checkout")
-            .GetProperty("post")
+            .GetProperty("post");
+        var checkoutCartResponses = checkoutCart
             .GetProperty("responses");
 
+        Assert.True(
+            checkoutCartResponses.TryGetProperty("200", out _));
         Assert.True(
             checkoutCartResponses.TryGetProperty("201", out _));
         Assert.True(
@@ -173,6 +176,31 @@ public sealed class OpenApiDocumentTests
             checkoutCartResponses.TryGetProperty("404", out _));
         Assert.True(
             checkoutCartResponses.TryGetProperty("409", out _));
+        Assert.Contains(
+            checkoutCart.GetProperty("parameters").EnumerateArray(),
+            parameter =>
+                parameter.GetProperty("name").GetString() ==
+                    "Idempotency-Key" &&
+                parameter.GetProperty("in").GetString() == "header");
+
+        var createOrder = paths
+            .GetProperty("/api/orders")
+            .GetProperty("post");
+        var createOrderResponses = createOrder
+            .GetProperty("responses");
+
+        Assert.True(
+            createOrderResponses.TryGetProperty("200", out _));
+        Assert.True(
+            createOrderResponses.TryGetProperty("201", out _));
+        Assert.True(
+            createOrderResponses.TryGetProperty("409", out _));
+        Assert.Contains(
+            createOrder.GetProperty("parameters").EnumerateArray(),
+            parameter =>
+                parameter.GetProperty("name").GetString() ==
+                    "Idempotency-Key" &&
+                parameter.GetProperty("in").GetString() == "header");
 
         var addressCollection = paths
             .GetProperty("/api/addresses");

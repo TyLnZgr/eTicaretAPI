@@ -73,9 +73,10 @@ public sealed class OrderEndpointTests
         };
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/orders",
-            request);
+        using var response = await SendCreateOrderAsync(
+            client,
+            request,
+            "order-create-001");
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -113,6 +114,8 @@ public sealed class OrderEndpointTests
             Assert.Equal(customerEmail, savedOrder.CustomerEmail);
             Assert.Equal(2500m, savedOrder.TotalAmount);
             Assert.Equal(2, Assert.Single(savedOrder.Items).Quantity);
+            Assert.Equal("order-create-001", savedOrder.IdempotencyKey);
+            Assert.Equal(64, savedOrder.RequestFingerprint?.Length);
             Assert.NotNull(savedOrder.ShippingAddress);
             Assert.Equal(
                 "Snapshot Street No: 42",
@@ -132,6 +135,183 @@ public sealed class OrderEndpointTests
             Assert.Equal(3, movement.StockQuantityAfter);
             Assert.Equal("Order placement", movement.Reason);
         });
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenSameRequestIsRepeated_ReplaysOrder()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+
+        var customerId = Guid.NewGuid();
+        using var client = factory.CreateCustomerClient(customerId);
+        var productId = 0;
+        var addressId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            dbContext.Users.Add(TestEntityFactory.CreateUser(
+                customerId,
+                "customer@example.com"));
+            var address = TestEntityFactory.CreateAddress(customerId);
+            var product = CreateProduct(stockQuantity: 5);
+
+            dbContext.CustomerAddresses.Add(address);
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+            addressId = address.Id;
+        });
+
+        var request = new CreateOrderRequest
+        {
+            AddressId = addressId,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new()
+                {
+                    ProductId = productId,
+                    Quantity = 1
+                }
+            }
+        };
+
+        // Act
+        using var firstResponse = await SendCreateOrderAsync(
+            client,
+            request,
+            "order-replay-001");
+        using var replayResponse = await SendCreateOrderAsync(
+            client,
+            request,
+            "order-replay-001");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, replayResponse.StatusCode);
+
+        var firstOrder = await firstResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+        var replayedOrder = await replayResponse.Content
+            .ReadFromJsonAsync<OrderResponse>();
+
+        Assert.NotNull(firstOrder);
+        Assert.NotNull(replayedOrder);
+        Assert.Equal(firstOrder.Id, replayedOrder.Id);
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.Equal(1, await dbContext.Orders.CountAsync());
+            Assert.Equal(1, await dbContext.StockMovements.CountAsync());
+
+            var stockQuantity = await dbContext.Products
+                .Where(product => product.Id == productId)
+                .Select(product => product.StockQuantity)
+                .SingleAsync();
+
+            Assert.Equal(4, stockQuantity);
+        });
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenKeyIsReusedForDifferentRequest_ReturnsConflict()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+
+        var customerId = Guid.NewGuid();
+        using var client = factory.CreateCustomerClient(customerId);
+        var productId = 0;
+        var addressId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            dbContext.Users.Add(TestEntityFactory.CreateUser(
+                customerId,
+                "customer@example.com"));
+            var address = TestEntityFactory.CreateAddress(customerId);
+            var product = CreateProduct(stockQuantity: 5);
+
+            dbContext.CustomerAddresses.Add(address);
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+            addressId = address.Id;
+        });
+
+        var firstRequest = new CreateOrderRequest
+        {
+            AddressId = addressId,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new() { ProductId = productId, Quantity = 1 }
+            }
+        };
+        var differentRequest = new CreateOrderRequest
+        {
+            AddressId = addressId,
+            Items = new List<CreateOrderItemRequest>
+            {
+                new() { ProductId = productId, Quantity = 2 }
+            }
+        };
+
+        using var firstResponse = await SendCreateOrderAsync(
+            client,
+            firstRequest,
+            "order-conflict-001");
+
+        // Act
+        using var conflictResponse = await SendCreateOrderAsync(
+            client,
+            differentRequest,
+            "order-conflict-001");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, firstResponse.StatusCode);
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            conflictResponse,
+            HttpStatusCode.Conflict,
+            "Conflict",
+            "The Idempotency-Key was already used with a different order request.");
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            Assert.Equal(1, await dbContext.Orders.CountAsync());
+
+            var stockQuantity = await dbContext.Products
+                .Where(product => product.Id == productId)
+                .Select(product => product.StockQuantity)
+                .SingleAsync();
+
+            Assert.Equal(4, stockQuantity);
+        });
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithoutIdempotencyKey_ReturnsValidationProblem()
+    {
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateCustomerClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/orders",
+            new CreateOrderRequest
+            {
+                AddressId = 1,
+                Items = new List<CreateOrderItemRequest>
+                {
+                    new() { ProductId = 1, Quantity = 1 }
+                }
+            });
+
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "Idempotency-Key",
+            "Idempotency-Key must be between 8 and 100 characters and contain " +
+            "only letters, digits, hyphens, underscores, dots, or colons.");
     }
 
     [Fact]
@@ -155,9 +335,10 @@ public sealed class OrderEndpointTests
         };
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/orders",
-            request);
+        using var response = await SendCreateOrderAsync(
+            client,
+            request,
+            "order-invalid-address-001");
 
         // Assert
         await ProblemDetailsAssertions.AssertValidationAsync(
@@ -213,9 +394,10 @@ public sealed class OrderEndpointTests
         };
 
         // Act
-        using var response = await client.PostAsJsonAsync(
-            "/api/orders",
-            request);
+        using var response = await SendCreateOrderAsync(
+            client,
+            request,
+            "order-foreign-address-001");
 
         // Assert
         await ProblemDetailsAssertions.AssertProblemAsync(
@@ -270,8 +452,8 @@ public sealed class OrderEndpointTests
             productId = product.Id;
         });
 
-        using var createResponse = await client.PostAsJsonAsync(
-            "/api/orders",
+        using var createResponse = await SendCreateOrderAsync(
+            client,
             new CreateOrderRequest
             {
                 AddressId = addressId,
@@ -283,7 +465,8 @@ public sealed class OrderEndpointTests
                         Quantity = 1
                     }
                 }
-            });
+            },
+            "order-address-snapshot-001");
 
         var createdOrder = await createResponse.Content
             .ReadFromJsonAsync<OrderResponse>();
@@ -675,5 +858,22 @@ public sealed class OrderEndpointTests
                 IsActive = true
             }
         };
+    }
+
+    private static async Task<HttpResponseMessage> SendCreateOrderAsync(
+        HttpClient client,
+        CreateOrderRequest request,
+        string idempotencyKey)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/orders")
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        message.Headers.Add("Idempotency-Key", idempotencyKey);
+
+        return await client.SendAsync(message);
     }
 }

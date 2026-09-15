@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using ECommerce.Application.Orders.Dtos;
 using ECommerce.Application.Orders.Outcomes;
 using ECommerce.Application.Orders.Services;
@@ -23,113 +26,201 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
 
     public async Task<OrderCreationResult> CreateAsync(
         Guid customerId,
+        string idempotencyKey,
         int addressId,
         IReadOnlyList<CreateOrderItemRequest> items,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction =
-            await _dbContext.Database.BeginTransactionAsync(
-                cancellationToken);
-
-        var result = await CreateCoreAsync(
-            customerId,
-            addressId,
-            items,
-            cancellationToken);
-
-        if (result.Status != OrderCreationStatus.Success)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            return result;
-        }
-
-        await transaction.CommitAsync(cancellationToken);
-        return result;
-    }
-
-    public async Task<OrderCreationResult> CheckoutCartAsync(
-        Guid customerId,
-        int addressId,
-        CancellationToken cancellationToken = default)
-    {
-        if (customerId == Guid.Empty || addressId <= 0)
+        if (customerId == Guid.Empty ||
+            !Order.IsIdempotencyKeyValid(idempotencyKey) ||
+            !IsOrderRequestValid(addressId, items))
         {
             return new OrderCreationResult(
                 OrderCreationStatus.InvalidRequest);
         }
 
+        var normalizedIdempotencyKey = idempotencyKey.Trim();
+        var requestFingerprint = CreateRequestFingerprint(
+            "items",
+            addressId,
+            items);
+
         await using var transaction =
             await _dbContext.Database.BeginTransactionAsync(
                 cancellationToken);
 
-        var cart = await _dbContext.Carts
-            .AsNoTracking()
-            .Include(candidate => candidate.Items)
-            .SingleOrDefaultAsync(
-                candidate => candidate.CustomerId == customerId,
-                cancellationToken);
-
-        if (cart is null || cart.Items.Count == 0)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-
-            return new OrderCreationResult(
-                OrderCreationStatus.CartEmpty);
-        }
-
-        var requestedItems = cart.Items
-            .Select(item => new CreateOrderItemRequest
-            {
-                ProductId = item.ProductId,
-                Quantity = item.Quantity
-            })
-            .ToArray();
-
-        var result = await CreateCoreAsync(
+        var existingResult = await FindIdempotencyResultAsync(
             customerId,
-            addressId,
-            requestedItems,
+            normalizedIdempotencyKey,
+            requestFingerprint,
             cancellationToken);
 
-        if (result.Status != OrderCreationStatus.Success)
+        if (existingResult is not null)
         {
             await transaction.RollbackAsync(cancellationToken);
+            return existingResult;
+        }
+
+        try
+        {
+            var result = await CreateCoreAsync(
+                customerId,
+                normalizedIdempotencyKey,
+                requestFingerprint,
+                addressId,
+                items,
+                cancellationToken);
+
+            if (result.Status != OrderCreationStatus.Success)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return result;
+            }
+
+            await transaction.CommitAsync(cancellationToken);
             return result;
         }
-
-        var deletedCarts = await _dbContext.Carts
-            .Where(candidate => candidate.Id == cart.Id)
-            .Where(candidate => candidate.CustomerId == customerId)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        if (deletedCarts == 0)
+        catch (DbUpdateException)
         {
             await transaction.RollbackAsync(cancellationToken);
+            _dbContext.ChangeTracker.Clear();
 
+            var replayResult = await FindIdempotencyResultAsync(
+                customerId,
+                normalizedIdempotencyKey,
+                requestFingerprint,
+                cancellationToken);
+
+            if (replayResult is null)
+            {
+                throw;
+            }
+
+            return replayResult;
+        }
+    }
+
+    public async Task<OrderCreationResult> CheckoutCartAsync(
+        Guid customerId,
+        string idempotencyKey,
+        int addressId,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerId == Guid.Empty ||
+            !Order.IsIdempotencyKeyValid(idempotencyKey) ||
+            addressId <= 0)
+        {
             return new OrderCreationResult(
-                OrderCreationStatus.ConcurrencyConflict);
+                OrderCreationStatus.InvalidRequest);
         }
 
-        await transaction.CommitAsync(cancellationToken);
-        return result;
+        var normalizedIdempotencyKey = idempotencyKey.Trim();
+        var requestFingerprint = CreateRequestFingerprint(
+            "cart",
+            addressId,
+            Array.Empty<CreateOrderItemRequest>());
+
+        await using var transaction =
+            await _dbContext.Database.BeginTransactionAsync(
+                cancellationToken);
+
+        var existingResult = await FindIdempotencyResultAsync(
+            customerId,
+            normalizedIdempotencyKey,
+            requestFingerprint,
+            cancellationToken);
+
+        if (existingResult is not null)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return existingResult;
+        }
+
+        try
+        {
+            var cart = await _dbContext.Carts
+                .AsNoTracking()
+                .Include(candidate => candidate.Items)
+                .SingleOrDefaultAsync(
+                    candidate => candidate.CustomerId == customerId,
+                    cancellationToken);
+
+            if (cart is null || cart.Items.Count == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                return new OrderCreationResult(
+                    OrderCreationStatus.CartEmpty);
+            }
+
+            var requestedItems = cart.Items
+                .Select(item => new CreateOrderItemRequest
+                {
+                    ProductId = item.ProductId,
+                    Quantity = item.Quantity
+                })
+                .ToArray();
+
+            var result = await CreateCoreAsync(
+                customerId,
+                normalizedIdempotencyKey,
+                requestFingerprint,
+                addressId,
+                requestedItems,
+                cancellationToken);
+
+            if (result.Status != OrderCreationStatus.Success)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return result;
+            }
+
+            var deletedCarts = await _dbContext.Carts
+                .Where(candidate => candidate.Id == cart.Id)
+                .Where(candidate => candidate.CustomerId == customerId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            if (deletedCarts == 0)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                return new OrderCreationResult(
+                    OrderCreationStatus.ConcurrencyConflict);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            _dbContext.ChangeTracker.Clear();
+
+            var replayResult = await FindIdempotencyResultAsync(
+                customerId,
+                normalizedIdempotencyKey,
+                requestFingerprint,
+                cancellationToken);
+
+            if (replayResult is null)
+            {
+                throw;
+            }
+
+            return replayResult;
+        }
     }
 
     private async Task<OrderCreationResult> CreateCoreAsync(
         Guid customerId,
+        string idempotencyKey,
+        string requestFingerprint,
         int addressId,
         IReadOnlyList<CreateOrderItemRequest> items,
         CancellationToken cancellationToken)
     {
         if (customerId == Guid.Empty ||
-            addressId <= 0 ||
-            items is null ||
-            items.Count == 0 ||
-            items.Count > 100 ||
-            items.Any(item =>
-                item.ProductId <= 0 ||
-                item.Quantity <= 0 ||
-                item.Quantity > 1_000) ||
-            items.Select(item => item.ProductId).Distinct().Count() != items.Count)
+            !IsOrderRequestValid(addressId, items))
         {
             return new OrderCreationResult(
                 OrderCreationStatus.InvalidRequest);
@@ -215,7 +306,9 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
                 shippingAddress.City,
                 shippingAddress.PostalCode,
                 shippingAddress.CountryCode),
-            _timeProvider.GetUtcNow().UtcDateTime);
+            _timeProvider.GetUtcNow().UtcDateTime,
+            idempotencyKey,
+            requestFingerprint);
 
         foreach (var requestedItem in requestedItems)
         {
@@ -301,5 +394,76 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
         return new OrderCreationResult(
             OrderCreationStatus.Success,
             order);
+    }
+
+    private async Task<OrderCreationResult?> FindIdempotencyResultAsync(
+        Guid customerId,
+        string idempotencyKey,
+        string requestFingerprint,
+        CancellationToken cancellationToken)
+    {
+        var existingOrder = await _dbContext.Orders
+            .AsNoTracking()
+            .Include(order => order.Items)
+            .SingleOrDefaultAsync(
+                order =>
+                    order.CustomerId == customerId &&
+                    order.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+
+        if (existingOrder is null)
+        {
+            return null;
+        }
+
+        if (existingOrder.RequestFingerprint != requestFingerprint)
+        {
+            return new OrderCreationResult(
+                OrderCreationStatus.IdempotencyConflict);
+        }
+
+        return new OrderCreationResult(
+            OrderCreationStatus.Success,
+            existingOrder,
+            WasReplay: true);
+    }
+
+    private static bool IsOrderRequestValid(
+        int addressId,
+        IReadOnlyList<CreateOrderItemRequest>? items)
+    {
+        return addressId > 0 &&
+               items is not null &&
+               items.Count > 0 &&
+               items.Count <= Order.MaxItemCount &&
+               items.All(item =>
+                   item.ProductId > 0 &&
+                   item.Quantity > 0 &&
+                   item.Quantity <= OrderItem.MaxQuantity) &&
+               items.Select(item => item.ProductId).Distinct().Count() ==
+               items.Count;
+    }
+
+    private static string CreateRequestFingerprint(
+        string operation,
+        int addressId,
+        IEnumerable<CreateOrderItemRequest> items)
+    {
+        var value = new StringBuilder()
+            .Append(operation)
+            .Append('\n')
+            .Append(addressId.ToString(CultureInfo.InvariantCulture));
+
+        foreach (var item in items.OrderBy(item => item.ProductId))
+        {
+            value
+                .Append('\n')
+                .Append(item.ProductId.ToString(CultureInfo.InvariantCulture))
+                .Append(':')
+                .Append(item.Quantity.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(value.ToString())));
     }
 }

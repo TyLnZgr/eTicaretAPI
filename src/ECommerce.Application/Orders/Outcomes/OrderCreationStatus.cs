@@ -10,5 +10,6 @@ public enum OrderCreationStatus
     ProductInactive,
     InsufficientStock,
     CartEmpty,
-    ConcurrencyConflict
+    ConcurrencyConflict,
+    IdempotencyConflict
 }

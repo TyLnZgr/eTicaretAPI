@@ -212,8 +212,9 @@ public sealed class CartController : ControllerBase
     [HttpPost("checkout", Name = "CheckoutCart")]
     [EndpointSummary("Create an order from the current customer's cart")]
     [EndpointDescription(
-        "Revalidates products and stock, creates the order, decreases stock, records stock movements, and removes the cart atomically.")]
+        "Idempotently revalidates products and stock, creates the order, decreases stock, records stock movements, and removes the cart atomically.")]
     [ProducesResponseType<OrderResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<OrderResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(
         StatusCodes.Status400BadRequest,
         "application/problem+json")]
@@ -227,6 +228,7 @@ public sealed class CartController : ControllerBase
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
     public async Task<ActionResult<OrderResponse>> CheckoutAsync(
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         [FromBody] CheckoutCartRequest request,
         CancellationToken cancellationToken)
     {
@@ -235,7 +237,9 @@ public sealed class CartController : ControllerBase
             return Unauthorized();
         }
 
-        var errors = CartRequestValidator.ValidateCheckout(request);
+        var errors = CartRequestValidator.ValidateCheckout(
+            idempotencyKey,
+            request);
 
         if (errors.Count > 0)
         {
@@ -245,6 +249,7 @@ public sealed class CartController : ControllerBase
 
         var result = await _orderPlacementService.CheckoutCartAsync(
             customerId,
+            idempotencyKey!.Trim(),
             request.AddressId,
             cancellationToken);
 
@@ -302,6 +307,14 @@ public sealed class CartController : ControllerBase
                 title: "Conflict");
         }
 
+        if (result.Status == OrderCreationStatus.IdempotencyConflict)
+        {
+            return Problem(
+                detail: "The Idempotency-Key was already used with a different order request.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
+
         if (result.Status == OrderCreationStatus.InvalidRequest)
         {
             return ValidationProblem(
@@ -323,9 +336,16 @@ public sealed class CartController : ControllerBase
                 title: "Internal Server Error");
         }
 
+        var response = result.Order.ToResponse();
+
+        if (result.WasReplay)
+        {
+            return Ok(response);
+        }
+
         return CreatedAtRoute(
             "GetOrderById",
             new { id = result.Order.Id },
-            result.Order.ToResponse());
+            response);
     }
 }

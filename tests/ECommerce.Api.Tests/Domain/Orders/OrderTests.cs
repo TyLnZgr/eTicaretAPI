@@ -6,6 +6,9 @@ public sealed class OrderTests
 {
     private static readonly DateTime CreatedAtUtc =
         new(2026, 9, 15, 13, 0, 0, DateTimeKind.Utc);
+    private const string IdempotencyKey = "order-test-001";
+    private const string RequestFingerprint =
+        "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
 
     [Fact]
     public void Constructor_WhenValuesAreValid_NormalizesOrderIdentityData()
@@ -18,6 +21,8 @@ public sealed class OrderTests
             "  Customer@Example.COM  ",
             shippingAddress,
             CreatedAtUtc,
+            IdempotencyKey,
+            RequestFingerprint,
             "try");
 
         Assert.Equal(customerId, order.CustomerId);
@@ -26,8 +31,40 @@ public sealed class OrderTests
         Assert.Equal(CreatedAtUtc, order.CreatedAtUtc);
         Assert.Same(shippingAddress, order.ShippingAddress);
         Assert.Equal(OrderStatus.Pending, order.Status);
+        Assert.Equal(IdempotencyKey, order.IdempotencyKey);
+        Assert.Equal(RequestFingerprint, order.RequestFingerprint);
         Assert.Equal(0m, order.TotalAmount);
         Assert.Empty(order.Items);
+    }
+
+    [Theory]
+    [InlineData("short")]
+    [InlineData("invalid key")]
+    [InlineData("invalid/key")]
+    public void Constructor_WhenIdempotencyKeyIsInvalid_Throws(string key)
+    {
+        Assert.Throws<ArgumentException>(() => new Order(
+            Guid.NewGuid(),
+            "customer@example.com",
+            CreateSnapshot("Original Street No: 10"),
+            CreatedAtUtc,
+            key,
+            RequestFingerprint));
+    }
+
+    [Theory]
+    [InlineData("too-short")]
+    [InlineData("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG")]
+    public void Constructor_WhenRequestFingerprintIsInvalid_Throws(
+        string requestFingerprint)
+    {
+        Assert.Throws<ArgumentException>(() => new Order(
+            Guid.NewGuid(),
+            "customer@example.com",
+            CreateSnapshot("Original Street No: 10"),
+            CreatedAtUtc,
+            IdempotencyKey,
+            requestFingerprint));
     }
 
     [Fact]
@@ -251,6 +288,8 @@ public sealed class OrderTests
             Guid.NewGuid(),
             "customer@example.com",
             CreateSnapshot("Original Street No: 10"),
-            CreatedAtUtc);
+            CreatedAtUtc,
+            IdempotencyKey,
+            RequestFingerprint);
     }
 }

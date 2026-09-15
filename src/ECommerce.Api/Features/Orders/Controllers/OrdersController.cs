@@ -96,8 +96,9 @@ public sealed class OrdersController : ControllerBase
     [HttpPost(Name = "CreateOrder")]
     [EndpointSummary("Create an order")]
     [EndpointDescription(
-        "Creates an order, decreases stock, and records stock movements atomically.")]
+        "Idempotently creates an order, decreases stock, and records stock movements atomically.")]
     [ProducesResponseType<OrderResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<OrderResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(
         StatusCodes.Status400BadRequest,
         "application/problem+json")]
@@ -114,6 +115,7 @@ public sealed class OrdersController : ControllerBase
         StatusCodes.Status500InternalServerError,
         "application/problem+json")]
     public async Task<ActionResult<OrderResponse>> CreateAsync(
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         [FromBody] CreateOrderRequest request,
         CancellationToken cancellationToken)
     {
@@ -122,7 +124,9 @@ public sealed class OrdersController : ControllerBase
             return Unauthorized();
         }
 
-        var errors = OrderRequestValidator.ValidateCreate(request);
+        var errors = OrderRequestValidator.ValidateCreate(
+            idempotencyKey,
+            request);
 
         if (errors.Count > 0)
         {
@@ -132,6 +136,7 @@ public sealed class OrdersController : ControllerBase
 
         var result = await _orderPlacementService.CreateAsync(
             customerId,
+            idempotencyKey!.Trim(),
             request.AddressId,
             request.Items,
             cancellationToken);
@@ -187,6 +192,14 @@ public sealed class OrdersController : ControllerBase
                 title: "Conflict");
         }
 
+        if (result.Status == OrderCreationStatus.IdempotencyConflict)
+        {
+            return Problem(
+                detail: "The Idempotency-Key was already used with a different order request.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict");
+        }
+
         if (result.Order is null)
         {
             return Problem(
@@ -196,6 +209,11 @@ public sealed class OrdersController : ControllerBase
         }
 
         var response = result.Order.ToResponse();
+
+        if (result.WasReplay)
+        {
+            return Ok(response);
+        }
 
         return CreatedAtRoute(
             "GetOrderById",

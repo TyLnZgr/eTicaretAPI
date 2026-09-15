@@ -75,6 +75,7 @@ public sealed class EfCoreOrderServiceTests
         // Act
         var result = await service.CreateAsync(
             customerId,
+            "order-service-test-001",
             address.Id,
             items);
 
