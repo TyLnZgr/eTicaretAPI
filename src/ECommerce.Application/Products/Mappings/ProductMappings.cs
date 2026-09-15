@@ -14,6 +14,7 @@ public static class ProductMappings
             product.StockQuantity,
             product.IsActive,
             product.CategoryId,
-            product.Category.Name);
+            product.Category.Name,
+            product.Version);
     }
 }

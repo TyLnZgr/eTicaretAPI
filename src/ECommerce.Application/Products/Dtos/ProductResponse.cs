@@ -7,4 +7,5 @@ public sealed record ProductResponse(
     int StockQuantity,
     bool IsActive,
     int CategoryId,
-    string CategoryName);
+    string CategoryName,
+    long Version);

@@ -6,7 +6,8 @@ public enum ProductMutationStatus
 {
     Success,
     ProductNotFound,
-    CategoryNotFound
+    CategoryNotFound,
+    ConcurrencyConflict
 }
 
 public sealed record ProductMutationResult(

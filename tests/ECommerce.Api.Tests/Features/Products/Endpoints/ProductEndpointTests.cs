@@ -275,6 +275,9 @@ public sealed class ProductEndpointTests
         Assert.Equal(categoryId, product.CategoryId);
         Assert.Equal("Computer Accessories", product.CategoryName);
         Assert.True(product.IsActive);
+        Assert.Equal(
+            $"\"{product.Version}\"",
+            response.Headers.ETag?.ToString());
 
         Assert.NotNull(response.Headers.Location);
         Assert.Equal(
@@ -416,10 +419,18 @@ public sealed class ProductEndpointTests
             IsActive = true
         };
 
+        using var initialResponse =
+            await client.GetAsync($"/api/products/{productId}");
+        var initialETag = initialResponse.Headers.ETag?.ToString();
+
+        Assert.NotNull(initialETag);
+
         // Act
-        using var response = await client.PutAsJsonAsync(
-            $"/api/products/{productId}",
-            request);
+        using var response = await UpdateProductAsync(
+            client,
+            productId,
+            request,
+            initialETag);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -435,6 +446,12 @@ public sealed class ProductEndpointTests
         Assert.Equal(categoryId, product.CategoryId);
         Assert.Equal("Computer Accessories", product.CategoryName);
         Assert.True(product.IsActive);
+        Assert.Equal(
+            $"\"{product.Version}\"",
+            response.Headers.ETag?.ToString());
+        Assert.NotEqual(
+            initialETag,
+            response.Headers.ETag?.ToString());
 
         using var getResponse =
             await client.GetAsync($"/api/products/{productId}");
@@ -445,6 +462,139 @@ public sealed class ProductEndpointTests
         Assert.NotNull(savedProduct);
         Assert.Equal("Updated Keyboard", savedProduct.Name);
         Assert.Equal(2750m, savedProduct.Price);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithoutIfMatch_ReturnsPreconditionRequired()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        var request = new UpdateProductRequest
+        {
+            Name = "Updated Keyboard",
+            Price = 2750m,
+            CategoryId = 1,
+            IsActive = true
+        };
+
+        // Act
+        using var response = await client.PutAsJsonAsync(
+            "/api/products/1",
+            request);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            response,
+            HttpStatusCode.PreconditionRequired,
+            "Precondition Required",
+            "The If-Match header is required to update a product.");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithMalformedIfMatch_ReturnsValidationProblem()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        var request = new UpdateProductRequest
+        {
+            Name = "Updated Keyboard",
+            Price = 2750m,
+            CategoryId = 1,
+            IsActive = true
+        };
+
+        // Act
+        using var response = await UpdateProductAsync(
+            client,
+            productId: 1,
+            request,
+            entityTag: "1");
+
+        // Assert
+        await ProblemDetailsAssertions.AssertValidationAsync(
+            response,
+            "If-Match",
+            "If-Match must contain one strong product ETag.");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithStaleETag_ReturnsPreconditionFailed()
+    {
+        // Arrange
+        using var factory = new ECommerceApiFactory();
+        using var client = factory.CreateAdministratorClient();
+
+        var productId = 0;
+        var categoryId = 0;
+
+        await factory.SeedDatabaseAsync(async dbContext =>
+        {
+            var category = new Category("Accessories", isActive: true);
+            var product = new Product(
+                "Keyboard",
+                1000m,
+                stockQuantity: 4,
+                category,
+                isActive: true);
+
+            dbContext.Products.Add(product);
+            await dbContext.SaveChangesAsync();
+
+            productId = product.Id;
+            categoryId = category.Id;
+        });
+
+        using var getResponse =
+            await client.GetAsync($"/api/products/{productId}");
+        var staleETag = getResponse.Headers.ETag?.ToString();
+
+        Assert.NotNull(staleETag);
+
+        using var firstUpdateResponse = await UpdateProductAsync(
+            client,
+            productId,
+            new UpdateProductRequest
+            {
+                Name = "First Update",
+                Price = 1100m,
+                CategoryId = categoryId,
+                IsActive = true
+            },
+            staleETag);
+
+        Assert.Equal(HttpStatusCode.OK, firstUpdateResponse.StatusCode);
+
+        // Act
+        using var staleUpdateResponse = await UpdateProductAsync(
+            client,
+            productId,
+            new UpdateProductRequest
+            {
+                Name = "Stale Update",
+                Price = 1200m,
+                CategoryId = categoryId,
+                IsActive = true
+            },
+            staleETag);
+
+        // Assert
+        await ProblemDetailsAssertions.AssertProblemAsync(
+            staleUpdateResponse,
+            HttpStatusCode.PreconditionFailed,
+            "Precondition Failed",
+            "The product changed after it was retrieved. " +
+            "Get the product again and retry with the new ETag.");
+
+        var savedProduct = await client.GetFromJsonAsync<ProductResponse>(
+            $"/api/products/{productId}");
+
+        Assert.NotNull(savedProduct);
+        Assert.Equal("First Update", savedProduct.Name);
+        Assert.Equal(1100m, savedProduct.Price);
     }
 
     [Fact]
@@ -483,6 +633,12 @@ public sealed class ProductEndpointTests
             Reason = "Customer order"
         };
 
+        using var initialResponse =
+            await client.GetAsync($"/api/products/{productId}");
+        var initialETag = initialResponse.Headers.ETag?.ToString();
+
+        Assert.NotNull(initialETag);
+
         // Act
         using var response = await client.PatchAsJsonAsync(
             $"/api/products/{productId}/stock",
@@ -501,6 +657,9 @@ public sealed class ProductEndpointTests
 
         Assert.NotNull(product);
         Assert.Equal(7, product.StockQuantity);
+        Assert.NotEqual(
+            initialETag,
+            getResponse.Headers.ETag?.ToString());
 
         using var movementsResponse = await client.GetAsync(
             $"/api/products/{productId}/stock-movements");
@@ -792,5 +951,23 @@ public sealed class ProductEndpointTests
         Assert.Equal(
             HttpStatusCode.NotFound,
             getResponse.StatusCode);
+    }
+
+    private static async Task<HttpResponseMessage> UpdateProductAsync(
+        HttpClient client,
+        int productId,
+        UpdateProductRequest request,
+        string entityTag)
+    {
+        using var message = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/products/{productId}")
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        message.Headers.TryAddWithoutValidation("If-Match", entityTag);
+
+        return await client.SendAsync(message);
     }
 }

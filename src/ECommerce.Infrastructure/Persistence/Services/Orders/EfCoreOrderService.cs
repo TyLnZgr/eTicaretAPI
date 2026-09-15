@@ -231,9 +231,14 @@ public sealed class EfCoreOrderService : IOrderService
                         (long)product.StockQuantity + quantityAsLong <=
                         int.MaxValue)
                     .ExecuteUpdateAsync(
-                        setters => setters.SetProperty(
-                            product => product.StockQuantity,
-                            product => product.StockQuantity + item.Quantity),
+                        setters => setters
+                            .SetProperty(
+                                product => product.StockQuantity,
+                                product =>
+                                    product.StockQuantity + item.Quantity)
+                            .SetProperty(
+                                product => product.Version,
+                                product => product.Version + 1),
                         cancellationToken);
 
                 if (affectedProducts == 0)

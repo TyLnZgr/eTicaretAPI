@@ -29,6 +29,7 @@ public class Product
                 "Stock quantity cannot be negative.");
         }
 
+        Version = 0;
         UpdateDetails(name, price, category, isActive);
         StockQuantity = stockQuantity;
     }
@@ -39,6 +40,7 @@ public class Product
     public int StockQuantity { get; internal set; }
     public bool IsActive { get; internal set; }
     public int CategoryId { get; internal set; }
+    public long Version { get; private set; } = 1;
 
     public Category Category { get; internal set; } = null!;
     public IReadOnlyCollection<StockMovement> StockMovements =>
@@ -52,7 +54,7 @@ public class Product
         Category category,
         bool isActive)
     {
-        Name = NormalizeName(name);
+        var normalizedName = NormalizeName(name);
 
         if (price <= 0)
         {
@@ -63,10 +65,14 @@ public class Product
 
         ArgumentNullException.ThrowIfNull(category);
 
+        var nextVersion = checked(Version + 1);
+
+        Name = normalizedName;
         Price = price;
         Category = category;
         CategoryId = category.Id;
         IsActive = isActive;
+        Version = nextVersion;
     }
 
     public StockMovement? RecordInitialStock(DateTime createdAtUtc)
@@ -124,6 +130,7 @@ public class Product
                 ProductStockChangeStatus.StockLimitExceeded);
         }
 
+        var nextVersion = checked(Version + 1);
         StockQuantity = (int)requestedStock;
 
         var movement = new StockMovement(
@@ -134,6 +141,7 @@ public class Product
             createdAtUtc);
 
         _stockMovements.Add(movement);
+        Version = nextVersion;
 
         return new ProductStockChangeResult(
             ProductStockChangeStatus.Success,

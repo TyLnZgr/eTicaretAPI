@@ -32,6 +32,7 @@ public interface IProductService
         decimal price,
         int categoryId,
         bool isActive,
+        long expectedVersion,
         CancellationToken cancellationToken = default);
 
     Task<ProductStockAdjustmentStatus> AdjustStockAsync(

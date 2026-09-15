@@ -39,6 +39,10 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(product => product.Price)
             .HasPrecision(18, 2);
 
+        builder.Property(product => product.Version)
+            .IsRequired()
+            .IsConcurrencyToken();
+
         builder.HasOne(product => product.Category)
             .WithMany(category => category.Products)
             .HasForeignKey(product => product.CategoryId)

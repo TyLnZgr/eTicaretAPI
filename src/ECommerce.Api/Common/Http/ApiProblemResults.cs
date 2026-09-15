@@ -27,6 +27,21 @@ public static class ApiProblemResults
             statusCode: StatusCodes.Status409Conflict);
     }
 
+    public static IResult PreconditionRequired(string detail)
+    {
+        return Results.Problem(
+            detail: detail,
+            statusCode: StatusCodes.Status428PreconditionRequired,
+            type: "https://www.rfc-editor.org/rfc/rfc6585#section-3");
+    }
+
+    public static IResult PreconditionFailed(string detail)
+    {
+        return Results.Problem(
+            detail: detail,
+            statusCode: StatusCodes.Status412PreconditionFailed);
+    }
+
     public static IResult InternalServerError()
     {
         return Results.Problem(

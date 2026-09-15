@@ -4,7 +4,9 @@ using ECommerce.Application.Products.Mappings;
 using ECommerce.Application.Products.Outcomes;
 using ECommerce.Application.Products.Services;
 using ECommerce.Application.Products.Validation;
+using ECommerce.Api.Common.Http;
 using ECommerce.Api.Identity.Authorization;
+using Microsoft.Net.Http.Headers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -71,6 +73,7 @@ public sealed class ProductsController : ControllerBase
                 title: "Not Found");
         }
 
+        Response.Headers.ETag = EntityTagHeader.Format(product.Version);
         return Ok(product);
     }
 
@@ -158,6 +161,7 @@ public sealed class ProductsController : ControllerBase
         }
 
         var response = result.Product.ToResponse();
+        Response.Headers.ETag = EntityTagHeader.Format(response.Version);
 
         return CreatedAtRoute(
             "GetProductById",
@@ -174,6 +178,12 @@ public sealed class ProductsController : ControllerBase
         "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status404NotFound,
+        "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status412PreconditionFailed,
+        "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(
+        StatusCodes.Status428PreconditionRequired,
         "application/problem+json")]
     [ProducesResponseType<ProblemDetails>(
         StatusCodes.Status500InternalServerError,
@@ -193,12 +203,37 @@ public sealed class ProductsController : ControllerBase
                 new ValidationProblemDetails(errors));
         }
 
+        if (!Request.Headers.TryGetValue(
+                HeaderNames.IfMatch,
+                out var ifMatchValues))
+        {
+            return Problem(
+                detail: "The If-Match header is required to update a product.",
+                statusCode: StatusCodes.Status428PreconditionRequired,
+                title: "Precondition Required",
+                type: "https://www.rfc-editor.org/rfc/rfc6585#section-3");
+        }
+
+        if (!EntityTagHeader.TryParse(ifMatchValues, out var expectedVersion))
+        {
+            return ValidationProblem(
+                new ValidationProblemDetails(
+                    new Dictionary<string, string[]>
+                    {
+                        [HeaderNames.IfMatch] = new[]
+                        {
+                            "If-Match must contain one strong product ETag."
+                        }
+                    }));
+        }
+
         var result = await _productService.UpdateAsync(
             id,
             request.Name.Trim(),
             request.Price,
             request.CategoryId,
             request.IsActive,
+            expectedVersion,
             cancellationToken);
 
         if (result.Status == ProductMutationStatus.ProductNotFound)
@@ -217,6 +252,15 @@ public sealed class ProductsController : ControllerBase
                 title: "Not Found");
         }
 
+        if (result.Status == ProductMutationStatus.ConcurrencyConflict)
+        {
+            return Problem(
+                detail: "The product changed after it was retrieved. " +
+                        "Get the product again and retry with the new ETag.",
+                statusCode: StatusCodes.Status412PreconditionFailed,
+                title: "Precondition Failed");
+        }
+
         if (result.Product is null)
         {
             return Problem(
@@ -225,7 +269,10 @@ public sealed class ProductsController : ControllerBase
                 title: "Internal Server Error");
         }
 
-        return Ok(result.Product.ToResponse());
+        var response = result.Product.ToResponse();
+        Response.Headers.ETag = EntityTagHeader.Format(response.Version);
+
+        return Ok(response);
     }
 
     [HttpPatch("{id:int}/stock", Name = "AdjustProductStock")]

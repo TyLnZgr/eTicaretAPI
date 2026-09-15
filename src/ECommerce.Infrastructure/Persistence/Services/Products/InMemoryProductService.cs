@@ -260,32 +260,43 @@ public class InMemoryProductService : IProductService
         decimal price,
         int categoryId,
         bool isActive,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var product = FindById(id);
-
-        if (product is null)
+        lock (_products)
         {
+            var product = FindById(id);
+
+            if (product is null)
+            {
+                return Task.FromResult(
+                    new ProductMutationResult(
+                        ProductMutationStatus.ProductNotFound));
+            }
+
+            if (product.Version != expectedVersion)
+            {
+                return Task.FromResult(
+                    new ProductMutationResult(
+                        ProductMutationStatus.ConcurrencyConflict));
+            }
+
+            if (!_categories.TryGetValue(categoryId, out var category))
+            {
+                return Task.FromResult(
+                    new ProductMutationResult(
+                        ProductMutationStatus.CategoryNotFound));
+            }
+
+            product.UpdateDetails(name, price, category, isActive);
+
             return Task.FromResult(
                 new ProductMutationResult(
-                    ProductMutationStatus.ProductNotFound));
+                    ProductMutationStatus.Success,
+                    product));
         }
-
-        if (!_categories.TryGetValue(categoryId, out var category))
-        {
-            return Task.FromResult(
-                new ProductMutationResult(
-                    ProductMutationStatus.CategoryNotFound));
-        }
-
-        product.UpdateDetails(name, price, category, isActive);
-
-        return Task.FromResult(
-            new ProductMutationResult(
-                ProductMutationStatus.Success,
-                product));
     }
 
     public Task<ProductStockAdjustmentStatus> AdjustStockAsync(
@@ -400,7 +411,8 @@ public class InMemoryProductService : IProductService
             product.StockQuantity,
             product.IsActive,
             product.CategoryId,
-            product.Category.Name);
+            product.Category.Name,
+            product.Version);
     }
 
     private static StockMovementResponse ToStockMovementResponse(

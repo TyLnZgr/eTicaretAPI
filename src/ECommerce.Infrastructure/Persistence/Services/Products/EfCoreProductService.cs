@@ -119,7 +119,8 @@ public class EfCoreProductService : IProductService
                 product.StockQuantity,
                 product.IsActive,
                 product.CategoryId,
-                product.Category.Name))
+                product.Category.Name,
+                product.Version))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<ProductResponse>(
@@ -143,7 +144,8 @@ public class EfCoreProductService : IProductService
                 product.StockQuantity,
                 product.IsActive,
                 product.CategoryId,
-                product.Category.Name))
+                product.Category.Name,
+                product.Version))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -220,6 +222,7 @@ public class EfCoreProductService : IProductService
         decimal price,
         int categoryId,
         bool isActive,
+        long expectedVersion,
         CancellationToken cancellationToken = default)
     {
         var product = await _dbContext.Products
@@ -231,6 +234,12 @@ public class EfCoreProductService : IProductService
         {
             return new ProductMutationResult(
                 ProductMutationStatus.ProductNotFound);
+        }
+
+        if (product.Version != expectedVersion)
+        {
+            return new ProductMutationResult(
+                ProductMutationStatus.ConcurrencyConflict);
         }
 
         var category = await _dbContext.Categories
@@ -246,7 +255,15 @@ public class EfCoreProductService : IProductService
 
         product.UpdateDetails(name, price, category, isActive);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return new ProductMutationResult(
+                ProductMutationStatus.ConcurrencyConflict);
+        }
 
         return new ProductMutationResult(
             ProductMutationStatus.Success,
@@ -284,9 +301,13 @@ public class EfCoreProductService : IProductService
                 (long)product.StockQuantity + quantityDeltaAsLong >= 0 &&
                 (long)product.StockQuantity + quantityDeltaAsLong <= int.MaxValue)
             .ExecuteUpdateAsync(
-                setters => setters.SetProperty(
-                    product => product.StockQuantity,
-                    product => product.StockQuantity + quantityDelta),
+                setters => setters
+                    .SetProperty(
+                        product => product.StockQuantity,
+                        product => product.StockQuantity + quantityDelta)
+                    .SetProperty(
+                        product => product.Version,
+                        product => product.Version + 1),
                 cancellationToken);
 
         if (affectedRows == 1)

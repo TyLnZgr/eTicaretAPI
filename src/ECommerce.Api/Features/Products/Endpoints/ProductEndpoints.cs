@@ -4,6 +4,7 @@ using ECommerce.Application.Products.Dtos;
 using ECommerce.Application.Products.Outcomes;
 using ECommerce.Application.Products.Services;
 using ECommerce.Domain.Catalog;
+using Microsoft.Net.Http.Headers;
 
 namespace ECommerce.Api.Features.Products.Endpoints;
 
@@ -52,6 +53,8 @@ public static class ProductEndpoints
             .Produces<ProductResponse>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status412PreconditionFailed)
+            .ProducesProblem(StatusCodes.Status428PreconditionRequired)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
         group.MapPatch("/{id:int}/stock", AdjustStockAsync)
@@ -175,6 +178,7 @@ public static class ProductEndpoints
     private static async Task<IResult> GetByIdAsync(
         int id,
         IProductService productService,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var product = await productService.GetByIdAsync(id, cancellationToken);
@@ -184,6 +188,9 @@ public static class ProductEndpoints
             return ApiProblemResults.NotFound(
                 $"Product with ID {id} was not found.");
         }
+
+        httpContext.Response.Headers.ETag =
+            EntityTagHeader.Format(product.Version);
 
         return Results.Ok(product);
     }
@@ -209,6 +216,7 @@ public static class ProductEndpoints
     private static async Task<IResult> CreateAsync(
         CreateProductRequest request,
         IProductService productService,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationResult = ValidateProductDetailsRequest(
@@ -247,6 +255,9 @@ public static class ProductEndpoints
             return ApiProblemResults.InternalServerError();
         }
 
+        httpContext.Response.Headers.ETag =
+            EntityTagHeader.Format(result.Product.Version);
+
         return Results.Created(
             $"/api/products/{result.Product.Id}",
             ToResponse(result.Product));
@@ -256,6 +267,7 @@ public static class ProductEndpoints
         int id,
         UpdateProductRequest request,
         IProductService productService,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var validationResult = ValidateProductDetailsRequest(
@@ -268,12 +280,28 @@ public static class ProductEndpoints
             return validationResult;
         }
 
+        if (!httpContext.Request.Headers.TryGetValue(
+                HeaderNames.IfMatch,
+                out var ifMatchValues))
+        {
+            return ApiProblemResults.PreconditionRequired(
+                "The If-Match header is required to update a product.");
+        }
+
+        if (!EntityTagHeader.TryParse(ifMatchValues, out var expectedVersion))
+        {
+            return ApiProblemResults.Validation(
+                HeaderNames.IfMatch,
+                "If-Match must contain one strong product ETag.");
+        }
+
         var result = await productService.UpdateAsync(
             id,
             request.Name.Trim(),
             request.Price,
             request.CategoryId,
             request.IsActive,
+            expectedVersion,
             cancellationToken);
 
         if (result.Status == ProductMutationStatus.ProductNotFound)
@@ -288,12 +316,23 @@ public static class ProductEndpoints
                 $"Category with ID {request.CategoryId} was not found.");
         }
 
+        if (result.Status == ProductMutationStatus.ConcurrencyConflict)
+        {
+            return ApiProblemResults.PreconditionFailed(
+                "The product changed after it was retrieved. " +
+                "Get the product again and retry with the new ETag.");
+        }
+
         if (result.Product is null)
         {
             return ApiProblemResults.InternalServerError();
         }
 
-        return Results.Ok(ToResponse(result.Product));
+        var response = ToResponse(result.Product);
+        httpContext.Response.Headers.ETag =
+            EntityTagHeader.Format(response.Version);
+
+        return Results.Ok(response);
     }
 
     private static async Task<IResult> AdjustStockAsync(
@@ -423,6 +462,7 @@ public static class ProductEndpoints
             product.StockQuantity,
             product.IsActive,
             product.CategoryId,
-            product.Category.Name);
+            product.Category.Name,
+            product.Version);
     }
 }

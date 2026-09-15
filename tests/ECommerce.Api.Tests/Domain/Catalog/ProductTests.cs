@@ -25,6 +25,7 @@ public sealed class ProductTests
         Assert.Equal(category.Id, product.CategoryId);
         Assert.Same(category, product.Category);
         Assert.True(product.IsActive);
+        Assert.Equal(1, product.Version);
     }
 
     [Theory]
@@ -56,6 +57,7 @@ public sealed class ProductTests
     {
         var product = CreateProduct(stockQuantity: 8);
         var newCategory = CreateCategory(id: 2);
+        var originalVersion = product.Version;
 
         product.UpdateDetails(
             "  Updated Keyboard  ",
@@ -69,12 +71,14 @@ public sealed class ProductTests
         Assert.Equal(newCategory.Id, product.CategoryId);
         Assert.Same(newCategory, product.Category);
         Assert.False(product.IsActive);
+        Assert.Equal(originalVersion + 1, product.Version);
     }
 
     [Fact]
     public void RecordInitialStock_WhenStockExists_AddsSingleMovement()
     {
         var product = CreateProduct(stockQuantity: 8);
+        var originalVersion = product.Version;
 
         var movement = product.RecordInitialStock(OccurredAtUtc);
 
@@ -86,12 +90,14 @@ public sealed class ProductTests
 
         Assert.Throws<InvalidOperationException>(() =>
             product.RecordInitialStock(OccurredAtUtc));
+        Assert.Equal(originalVersion, product.Version);
     }
 
     [Fact]
     public void AdjustStock_WhenDecreaseIsValid_UpdatesStockAndRecordsMovement()
     {
         var product = CreateProduct(stockQuantity: 8);
+        var originalVersion = product.Version;
 
         var result = product.AdjustStock(
             quantityDelta: -3,
@@ -105,6 +111,7 @@ public sealed class ProductTests
         Assert.Equal(5, result.Movement.StockQuantityAfter);
         Assert.Equal("Customer order", result.Movement.Reason);
         Assert.Single(product.StockMovements);
+        Assert.Equal(originalVersion + 1, product.Version);
     }
 
     [Theory]
@@ -117,6 +124,7 @@ public sealed class ProductTests
         ProductStockChangeStatus expectedStatus)
     {
         var product = CreateProduct(stockQuantity: 8);
+        var originalVersion = product.Version;
 
         var result = product.AdjustStock(
             quantityDelta,
@@ -127,6 +135,7 @@ public sealed class ProductTests
         Assert.Null(result.Movement);
         Assert.Equal(8, product.StockQuantity);
         Assert.Empty(product.StockMovements);
+        Assert.Equal(originalVersion, product.Version);
     }
 
     private static Product CreateProduct(int stockQuantity)

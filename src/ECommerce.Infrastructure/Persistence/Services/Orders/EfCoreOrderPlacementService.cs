@@ -239,10 +239,14 @@ public sealed class EfCoreOrderPlacementService : IOrderPlacementService
                 .Where(product =>
                     product.StockQuantity >= requestedItem.Quantity)
                 .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(
-                        product => product.StockQuantity,
-                        product =>
-                            product.StockQuantity - requestedItem.Quantity),
+                    setters => setters
+                        .SetProperty(
+                            product => product.StockQuantity,
+                            product =>
+                                product.StockQuantity - requestedItem.Quantity)
+                        .SetProperty(
+                            product => product.Version,
+                            product => product.Version + 1),
                     cancellationToken);
 
             if (affectedRows == 0)

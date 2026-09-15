@@ -251,6 +251,63 @@ public sealed class EfCoreProductServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_WithStaleVersion_DoesNotOverwriteProduct()
+    {
+        // Arrange
+        await using var database =
+            await SqliteTestDatabase.CreateAsync();
+
+        var category = new Category("Accessories", isActive: true);
+        var product = new Product(
+            "Keyboard",
+            1000m,
+            stockQuantity: 5,
+            category,
+            isActive: true);
+
+        database.DbContext.Products.Add(product);
+        await database.DbContext.SaveChangesAsync();
+
+        var service = new EfCoreProductService(
+            database.DbContext,
+            TimeProvider.System);
+        var originalVersion = product.Version;
+
+        var firstResult = await service.UpdateAsync(
+            product.Id,
+            "First Update",
+            1100m,
+            category.Id,
+            isActive: true,
+            expectedVersion: originalVersion);
+
+        // Act
+        var staleResult = await service.UpdateAsync(
+            product.Id,
+            "Stale Update",
+            1200m,
+            category.Id,
+            isActive: true,
+            expectedVersion: originalVersion);
+
+        // Assert
+        Assert.Equal(ProductMutationStatus.Success, firstResult.Status);
+        Assert.Equal(
+            ProductMutationStatus.ConcurrencyConflict,
+            staleResult.Status);
+
+        database.DbContext.ChangeTracker.Clear();
+
+        var savedProduct = await database.DbContext.Products
+            .AsNoTracking()
+            .SingleAsync();
+
+        Assert.Equal("First Update", savedProduct.Name);
+        Assert.Equal(1100m, savedProduct.Price);
+        Assert.Equal(originalVersion + 1, savedProduct.Version);
+    }
+
+    [Fact]
     public async Task AdjustStockAsync_WhenDecreaseIsValid_UpdatesStock()
     {
         // Arrange
@@ -272,6 +329,7 @@ public sealed class EfCoreProductServiceTests
 
         database.DbContext.Products.Add(product);
         await database.DbContext.SaveChangesAsync();
+        var originalVersion = product.Version;
 
         var service =
             new EfCoreProductService(
@@ -292,6 +350,7 @@ public sealed class EfCoreProductServiceTests
         await database.DbContext.Entry(product).ReloadAsync();
 
         Assert.Equal(2, product.StockQuantity);
+        Assert.Equal(originalVersion + 1, product.Version);
 
         var movement = await database.DbContext.StockMovements
             .AsNoTracking()
