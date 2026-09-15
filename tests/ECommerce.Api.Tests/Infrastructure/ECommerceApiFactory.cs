@@ -17,16 +17,19 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
     private readonly bool _useTestAuthentication;
     private readonly IReadOnlyDictionary<string, string?>
         _configurationOverrides;
+    private readonly Action<IServiceCollection>? _serviceOverrides;
 
     public ECommerceApiFactory(
         string environment = "Testing",
         bool useTestAuthentication = true,
-        IReadOnlyDictionary<string, string?>? configurationOverrides = null)
+        IReadOnlyDictionary<string, string?>? configurationOverrides = null,
+        Action<IServiceCollection>? serviceOverrides = null)
     {
         _environment = environment;
         _useTestAuthentication = useTestAuthentication;
         _configurationOverrides = configurationOverrides ??
             new Dictionary<string, string?>();
+        _serviceOverrides = serviceOverrides;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -94,6 +97,8 @@ public sealed class ECommerceApiFactory : WebApplicationFactory<Program>
                         TestAuthenticationHandler.SchemeName,
                         _ => { });
             }
+
+            _serviceOverrides?.Invoke(services);
         });
 
     }

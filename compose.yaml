@@ -23,15 +23,21 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: ${ECOMMERCE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__ECommerceDatabase: Data Source=/app/data/ecommerce.db;Foreign Keys=True
+      ConnectionStrings__Redis: redis:6379,abortConnect=false,connectRetry=1,connectTimeout=1000,syncTimeout=1000,asyncTimeout=1000
       Messaging__Provider: RabbitMq
       Messaging__RabbitMq__HostName: rabbitmq
       Messaging__RabbitMq__Port: 5672
       Messaging__RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-ecommerce}
       Messaging__RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-ecommerce_dev_only}
+      OutputCache__Provider: Redis
+      OutputCache__Redis__InstanceName: "ecommerce:output-cache:"
+      OutputCache__Redis__FailOpen: "true"
     init: true
     ports:
       - "127.0.0.1:${ECOMMERCE_API_PORT:-5080}:8080"
@@ -68,6 +74,28 @@ services:
       start_period: 20s
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:8.10.1-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    restart: unless-stopped
 
 volumes:
   ecommerce-data:

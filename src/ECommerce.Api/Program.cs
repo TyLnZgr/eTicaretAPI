@@ -12,8 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
-builder.Services.AddOutputCache(CatalogOutputCache.Configure);
-builder.Services.AddSingleton<CatalogOutputCache>();
+builder.Services.AddCatalogOutputCaching(builder.Configuration);
 builder.Services.AddApiRateLimiting(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
