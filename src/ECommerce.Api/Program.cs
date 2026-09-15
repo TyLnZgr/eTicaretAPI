@@ -1,3 +1,4 @@
+using ECommerce.Api.Common.Observability;
 using ECommerce.Api.Identity.Authorization;
 using ECommerce.Infrastructure;
 using ECommerce.Infrastructure.Identity;
@@ -38,6 +39,7 @@ if (app.Environment.IsDevelopment())
     await identityDataSeeder.SeedAsync();
 }
 
+app.UseMiddleware<RequestCorrelationMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseAuthentication();
