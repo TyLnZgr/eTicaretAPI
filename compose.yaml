@@ -1,15 +1,65 @@
+name: ecommerce
+
 services:
+  migrations:
+    build:
+      context: .
+      target: migrations
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    command:
+      - --connection
+      - Data Source=/app/data/ecommerce.db;Foreign Keys=True
+    restart: "no"
+    volumes:
+      - ecommerce-data:/app/data
+
+  api:
+    build:
+      context: .
+      target: final
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ECOMMERCE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__ECommerceDatabase: Data Source=/app/data/ecommerce.db;Foreign Keys=True
+      Messaging__Provider: RabbitMq
+      Messaging__RabbitMq__HostName: rabbitmq
+      Messaging__RabbitMq__Port: 5672
+      Messaging__RabbitMq__UserName: ${RABBITMQ_DEFAULT_USER:-ecommerce}
+      Messaging__RabbitMq__Password: ${RABBITMQ_DEFAULT_PASS:-ecommerce_dev_only}
+    init: true
+    ports:
+      - "127.0.0.1:${ECOMMERCE_API_PORT:-5080}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --show-error
+        - http://localhost:8080/health/ready
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    volumes:
+      - ecommerce-data:/app/data
+
   rabbitmq:
     image: rabbitmq:4.3.5-management-alpine
-    container_name: ecommerce-rabbitmq
-    hostname: ecommerce-rabbitmq
-    restart: unless-stopped
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-ecommerce}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-ecommerce_dev_only}
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -20,4 +70,5 @@ services:
       - rabbitmq-data:/var/lib/rabbitmq
 
 volumes:
+  ecommerce-data:
   rabbitmq-data:

@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+**/bin
+**/obj
+**/TestResults
+**/*.db
+**/*.db-shm
+**/*.db-wal
+coverage
+docs
+tests
+README.md
+*.user
+*.suo
