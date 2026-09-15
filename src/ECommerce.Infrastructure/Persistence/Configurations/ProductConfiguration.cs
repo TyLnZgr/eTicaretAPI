@@ -9,25 +9,26 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
     public void Configure(EntityTypeBuilder<Product> builder)
     {
         builder.ToTable(
-     "Products",
-     tableBuilder =>
-     {
-         tableBuilder.HasCheckConstraint(
-             "CK_Products_Name_Valid",
-             "length(trim(\"Name\")) BETWEEN 1 AND 200");
+            "Products",
+            tableBuilder =>
+            {
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_Name_Valid",
+                    $"length(trim(\"Name\")) BETWEEN 1 AND " +
+                    $"{Product.MaxNameLength}");
 
-         tableBuilder.HasCheckConstraint(
-             "CK_Products_Price_Positive",
-             "CAST(\"Price\" AS NUMERIC) > 0");
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_Price_Positive",
+                    "CAST(\"Price\" AS NUMERIC) > 0");
 
-         tableBuilder.HasCheckConstraint(
-             "CK_Products_StockQuantity_NonNegative",
-             "\"StockQuantity\" >= 0");
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_StockQuantity_NonNegative",
+                    "\"StockQuantity\" >= 0");
 
-         tableBuilder.HasCheckConstraint(
-             "CK_Products_IsActive_Valid",
-             "\"IsActive\" IN (0, 1)");
-     });
+                tableBuilder.HasCheckConstraint(
+                    "CK_Products_IsActive_Valid",
+                    "\"IsActive\" IN (0, 1)");
+            });
 
         builder.HasKey(product => product.Id);
 
@@ -39,12 +40,18 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasPrecision(18, 2);
 
         builder.HasOne(product => product.Category)
-     .WithMany(category => category.Products)
-     .HasForeignKey(product => product.CategoryId)
-     .OnDelete(DeleteBehavior.Restrict)
-     .IsRequired();
+            .WithMany(category => category.Products)
+            .HasForeignKey(product => product.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired();
 
         builder.Navigation(product => product.StockMovements)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(product => product.OrderItems)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(product => product.CartItems)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

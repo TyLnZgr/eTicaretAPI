@@ -1,22 +1,19 @@
 using ECommerce.Application.Payments.Dtos;
+using ECommerce.Domain.Payments;
 
 namespace ECommerce.Application.Payments.Validation;
 
 public static class PaymentRequestValidator
 {
+    public const int PaymentMethodTokenMaxLength = 200;
+
     public static Dictionary<string, string[]> ValidateProcess(
         string? idempotencyKey,
         ProcessPaymentRequest request)
     {
         var errors = new Dictionary<string, string[]>();
-        var normalizedKey = idempotencyKey?.Trim();
 
-        if (string.IsNullOrWhiteSpace(normalizedKey) ||
-            normalizedKey.Length < 8 ||
-            normalizedKey.Length > 100 ||
-            normalizedKey.Any(character =>
-                !(char.IsLetterOrDigit(character) ||
-                  character is '-' or '_' or '.' or ':')))
+        if (!Payment.IsIdempotencyKeyValid(idempotencyKey))
         {
             errors["Idempotency-Key"] = new[]
             {
@@ -25,7 +22,7 @@ public static class PaymentRequestValidator
         }
 
         if (string.IsNullOrWhiteSpace(request.PaymentMethodToken) ||
-            request.PaymentMethodToken.Length > 200 ||
+            request.PaymentMethodToken.Length > PaymentMethodTokenMaxLength ||
             request.PaymentMethodToken.Any(char.IsWhiteSpace))
         {
             errors["paymentMethodToken"] = new[]

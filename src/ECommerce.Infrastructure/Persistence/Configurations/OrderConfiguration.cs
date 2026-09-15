@@ -51,42 +51,56 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingRecipientFullName_Valid",
                     "\"ShippingRecipientFullName\" IS NULL OR " +
-                    "length(trim(\"ShippingRecipientFullName\")) BETWEEN 2 AND 200");
+                    "length(trim(\"ShippingRecipientFullName\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.RecipientFullNameMinLength} AND " +
+                    $"{OrderAddressSnapshot.RecipientFullNameMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingPhoneNumber_Valid",
                     "\"ShippingPhoneNumber\" IS NULL OR " +
-                    "length(trim(\"ShippingPhoneNumber\")) BETWEEN 3 AND 30");
+                    "length(trim(\"ShippingPhoneNumber\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.PhoneNumberMinLength} AND " +
+                    $"{OrderAddressSnapshot.PhoneNumberMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingAddressLine1_Valid",
                     "\"ShippingAddressLine1\" IS NULL OR " +
-                    "length(trim(\"ShippingAddressLine1\")) BETWEEN 5 AND 300");
+                    "length(trim(\"ShippingAddressLine1\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.AddressLine1MinLength} AND " +
+                    $"{OrderAddressSnapshot.AddressLine1MaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingAddressLine2_Valid",
                     "\"ShippingAddressLine2\" IS NULL OR " +
-                    "length(trim(\"ShippingAddressLine2\")) BETWEEN 1 AND 300");
+                    "length(trim(\"ShippingAddressLine2\")) BETWEEN 1 AND " +
+                    $"{OrderAddressSnapshot.AddressLine2MaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingDistrict_Valid",
                     "\"ShippingDistrict\" IS NULL OR " +
-                    "length(trim(\"ShippingDistrict\")) BETWEEN 1 AND 100");
+                    "length(trim(\"ShippingDistrict\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.DistrictMinLength} AND " +
+                    $"{OrderAddressSnapshot.DistrictMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingCity_Valid",
                     "\"ShippingCity\" IS NULL OR " +
-                    "length(trim(\"ShippingCity\")) BETWEEN 1 AND 100");
+                    "length(trim(\"ShippingCity\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.CityMinLength} AND " +
+                    $"{OrderAddressSnapshot.CityMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingPostalCode_Valid",
                     "\"ShippingPostalCode\" IS NULL OR " +
-                    "length(trim(\"ShippingPostalCode\")) BETWEEN 1 AND 20");
+                    "length(trim(\"ShippingPostalCode\")) BETWEEN " +
+                    $"{OrderAddressSnapshot.PostalCodeMinLength} AND " +
+                    $"{OrderAddressSnapshot.PostalCodeMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Orders_ShippingCountryCode_Valid",
                     "\"ShippingCountryCode\" IS NULL OR " +
-                    "(length(\"ShippingCountryCode\") = 2 AND " +
+                    $"(length(\"ShippingCountryCode\") = " +
+                    $"{OrderAddressSnapshot.CountryCodeLength} AND " +
                     "\"ShippingCountryCode\" = upper(\"ShippingCountryCode\"))");
             });
 
@@ -117,35 +131,40 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             {
                 shippingAddress.Property(address => address.RecipientFullName)
                     .HasColumnName("ShippingRecipientFullName")
-                    .HasMaxLength(200);
+                    .HasMaxLength(
+                        OrderAddressSnapshot.RecipientFullNameMaxLength);
 
                 shippingAddress.Property(address => address.PhoneNumber)
                     .HasColumnName("ShippingPhoneNumber")
-                    .HasMaxLength(30);
+                    .HasMaxLength(
+                        OrderAddressSnapshot.PhoneNumberMaxLength);
 
                 shippingAddress.Property(address => address.AddressLine1)
                     .HasColumnName("ShippingAddressLine1")
-                    .HasMaxLength(300);
+                    .HasMaxLength(
+                        OrderAddressSnapshot.AddressLine1MaxLength);
 
                 shippingAddress.Property(address => address.AddressLine2)
                     .HasColumnName("ShippingAddressLine2")
-                    .HasMaxLength(300);
+                    .HasMaxLength(
+                        OrderAddressSnapshot.AddressLine2MaxLength);
 
                 shippingAddress.Property(address => address.District)
                     .HasColumnName("ShippingDistrict")
-                    .HasMaxLength(100);
+                    .HasMaxLength(
+                        OrderAddressSnapshot.DistrictMaxLength);
 
                 shippingAddress.Property(address => address.City)
                     .HasColumnName("ShippingCity")
-                    .HasMaxLength(100);
+                    .HasMaxLength(OrderAddressSnapshot.CityMaxLength);
 
                 shippingAddress.Property(address => address.PostalCode)
                     .HasColumnName("ShippingPostalCode")
-                    .HasMaxLength(20);
+                    .HasMaxLength(OrderAddressSnapshot.PostalCodeMaxLength);
 
                 shippingAddress.Property(address => address.CountryCode)
                     .HasColumnName("ShippingCountryCode")
-                    .HasMaxLength(2)
+                    .HasMaxLength(OrderAddressSnapshot.CountryCodeLength)
                     .IsFixedLength();
             });
 
@@ -153,6 +172,9 @@ public sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired(false);
 
         builder.Navigation(order => order.Items)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(order => order.Payments)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasOne<ApplicationUser>()

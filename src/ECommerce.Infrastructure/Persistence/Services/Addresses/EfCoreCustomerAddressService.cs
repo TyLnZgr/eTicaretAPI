@@ -1,7 +1,6 @@
 using ECommerce.Application.Addresses.Dtos;
 using ECommerce.Application.Addresses.Outcomes;
 using ECommerce.Application.Addresses.Services;
-using ECommerce.Application.Addresses.Validation;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Domain.Customers;
 using Microsoft.EntityFrameworkCore;
@@ -78,7 +77,7 @@ public sealed class EfCoreCustomerAddressService
                 cancellationToken);
 
         if (addressCount >=
-            CustomerAddressRequestValidator.MaximumAddressesPerCustomer)
+            CustomerAddress.MaximumAddressesPerCustomer)
         {
             await transaction.RollbackAsync(cancellationToken);
 
@@ -87,26 +86,9 @@ public sealed class EfCoreCustomerAddressService
         }
 
         var makeDefault = request.IsDefault || addressCount == 0;
-
-        if (makeDefault)
-        {
-            await ClearDefaultAddressAsync(
-                customerId,
-                exceptAddressId: null,
-                cancellationToken);
-        }
-
         var now = _timeProvider.GetUtcNow().UtcDateTime;
-        var address = new CustomerAddress
-        {
-            CustomerId = customerId,
-            IsDefault = makeDefault,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
-
-        ApplyValues(
-            address,
+        var address = new CustomerAddress(
+            customerId,
             request.Label,
             request.RecipientFullName,
             request.PhoneNumber,
@@ -115,7 +97,17 @@ public sealed class EfCoreCustomerAddressService
             request.District,
             request.City,
             request.PostalCode,
-            request.CountryCode);
+            request.CountryCode,
+            makeDefault,
+            now);
+
+        if (makeDefault)
+        {
+            await ClearDefaultAddressAsync(
+                customerId,
+                exceptAddressId: null,
+                cancellationToken);
+        }
 
         _dbContext.CustomerAddresses.Add(address);
 
@@ -165,16 +157,7 @@ public sealed class EfCoreCustomerAddressService
             address.IsDefault ||
             !hasDefaultAddress;
 
-        if (makeDefault)
-        {
-            await ClearDefaultAddressAsync(
-                customerId,
-                address.Id,
-                cancellationToken);
-        }
-
-        ApplyValues(
-            address,
+        address.UpdateDetails(
             request.Label,
             request.RecipientFullName,
             request.PhoneNumber,
@@ -183,10 +166,17 @@ public sealed class EfCoreCustomerAddressService
             request.District,
             request.City,
             request.PostalCode,
-            request.CountryCode);
+            request.CountryCode,
+            makeDefault,
+            _timeProvider.GetUtcNow().UtcDateTime);
 
-        address.IsDefault = makeDefault;
-        address.UpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+        if (makeDefault)
+        {
+            await ClearDefaultAddressAsync(
+                customerId,
+                address.Id,
+                cancellationToken);
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -280,30 +270,5 @@ public sealed class EfCoreCustomerAddressService
                 address => address.IsDefault,
                 false),
             cancellationToken);
-    }
-
-    private static void ApplyValues(
-        CustomerAddress address,
-        string label,
-        string recipientFullName,
-        string phoneNumber,
-        string addressLine1,
-        string? addressLine2,
-        string district,
-        string city,
-        string postalCode,
-        string countryCode)
-    {
-        address.Label = label.Trim();
-        address.RecipientFullName = recipientFullName.Trim();
-        address.PhoneNumber = phoneNumber.Trim();
-        address.AddressLine1 = addressLine1.Trim();
-        address.AddressLine2 = string.IsNullOrWhiteSpace(addressLine2)
-            ? null
-            : addressLine2.Trim();
-        address.District = district.Trim();
-        address.City = city.Trim();
-        address.PostalCode = postalCode.Trim();
-        address.CountryCode = countryCode.Trim().ToUpperInvariant();
     }
 }

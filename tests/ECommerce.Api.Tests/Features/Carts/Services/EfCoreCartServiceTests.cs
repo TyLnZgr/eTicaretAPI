@@ -116,29 +116,19 @@ public sealed class EfCoreCartServiceTests
             "Mouse",
             stockQuantity: 10);
 
-        var cart = new Cart
-        {
-            CustomerId = customerId,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
-            Items = new List<CartItem>
-            {
-                new()
-                {
-                    Product = firstProduct,
-                    Quantity = 1
-                },
-                new()
-                {
-                    Product = secondProduct,
-                    Quantity = 2
-                }
-            }
-        };
-
         database.DbContext.Users.Add(TestEntityFactory.CreateUser(
             customerId,
             "customer@example.com"));
+        database.DbContext.Products.AddRange(
+            firstProduct,
+            secondProduct);
+        await database.DbContext.SaveChangesAsync();
+
+        var now = DateTime.UtcNow;
+        var cart = new Cart(customerId, now);
+        cart.SetItemQuantity(firstProduct.Id, 1, now);
+        cart.SetItemQuantity(secondProduct.Id, 2, now);
+
         database.DbContext.Carts.Add(cart);
         await database.DbContext.SaveChangesAsync();
 

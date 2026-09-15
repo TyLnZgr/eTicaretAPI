@@ -1,11 +1,10 @@
 using ECommerce.Application.Carts.Dtos;
+using ECommerce.Domain.Carts;
 
 namespace ECommerce.Application.Carts.Validation;
 
 public static class CartRequestValidator
 {
-    public const int MaximumQuantityPerItem = 1_000;
-
     public static Dictionary<string, string[]> ValidateSetQuantity(
         int productId,
         SetCartItemQuantityRequest request)
@@ -21,11 +20,11 @@ public static class CartRequestValidator
         }
 
         if (request.Quantity < 1 ||
-            request.Quantity > MaximumQuantityPerItem)
+            request.Quantity > CartItem.MaximumQuantity)
         {
             errors["quantity"] = new[]
             {
-                $"Quantity must be between 1 and {MaximumQuantityPerItem}."
+                $"Quantity must be between 1 and {CartItem.MaximumQuantity}."
             };
         }
 

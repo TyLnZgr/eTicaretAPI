@@ -16,15 +16,17 @@ public sealed class CustomerNotificationConfiguration
             {
                 tableBuilder.HasCheckConstraint(
                     "CK_CustomerNotifications_Type_Valid",
-                    "\"Type\" IN (1)");
+                    $"\"Type\" IN ({(int)NotificationType.OrderPaid})");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_CustomerNotifications_Title_Valid",
-                    "length(trim(\"Title\")) BETWEEN 1 AND 200");
+                    $"length(trim(\"Title\")) BETWEEN 1 AND " +
+                    $"{CustomerNotification.MaximumTitleLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_CustomerNotifications_Message_Valid",
-                    "length(trim(\"Message\")) BETWEEN 1 AND 1000");
+                    $"length(trim(\"Message\")) BETWEEN 1 AND " +
+                    $"{CustomerNotification.MaximumMessageLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_CustomerNotifications_IsRead_Valid",

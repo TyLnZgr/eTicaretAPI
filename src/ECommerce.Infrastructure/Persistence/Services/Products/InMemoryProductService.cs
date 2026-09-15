@@ -13,11 +13,9 @@ public class InMemoryProductService : IProductService
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<int, Category> _categories = new()
     {
-        [1] = new Category
+        [1] = new Category("Uncategorized", isActive: true)
         {
-            Id = 1,
-            Name = "Uncategorized",
-            IsActive = true
+            Id = 1
         }
     };
 

@@ -15,7 +15,7 @@ public sealed class CategoryConfiguration
             {
                 tableBuilder.HasCheckConstraint(
                     "CK_Categories_Name_Valid",
-                    "length(trim(\"Name\")) BETWEEN 1 AND 100");
+                    $"length(trim(\"Name\")) BETWEEN 1 AND {Category.MaxNameLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Categories_IsActive_Valid",
@@ -26,6 +26,9 @@ public sealed class CategoryConfiguration
 
         builder.Property(category => category.Name)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(Category.MaxNameLength);
+
+        builder.Navigation(category => category.Products)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -435,21 +435,19 @@ public sealed class CustomerAddressEndpointTests
     {
         var timestamp = updatedAtUtc ?? DateTime.UtcNow;
 
-        return new CustomerAddress
-        {
-            CustomerId = customerId,
-            Label = label,
-            RecipientFullName = "Taylor Customer",
-            PhoneNumber = "+90 555 111 22 33",
-            AddressLine1 = "Example Street No: 10",
-            District = "Kadikoy",
-            City = "Istanbul",
-            PostalCode = "34710",
-            CountryCode = "TR",
-            IsDefault = isDefault,
-            CreatedAtUtc = timestamp,
-            UpdatedAtUtc = timestamp
-        };
+        return new CustomerAddress(
+            customerId,
+            label,
+            "Taylor Customer",
+            "+90 555 111 22 33",
+            "Example Street No: 10",
+            addressLine2: null,
+            "Kadikoy",
+            "Istanbul",
+            "34710",
+            "TR",
+            isDefault,
+            timestamp);
     }
 
     private static Task AssertAddressNotFoundAsync(

@@ -19,20 +19,24 @@ public sealed class PaymentConfiguration
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Payments_Currency_Valid",
-                    "length(\"Currency\") = 3 AND " +
+                    $"length(\"Currency\") = {Payment.CurrencyLength} AND " +
                     "\"Currency\" = upper(\"Currency\")");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Payments_IdempotencyKey_Valid",
-                    "length(trim(\"IdempotencyKey\")) BETWEEN 8 AND 100");
+                    $"length(trim(\"IdempotencyKey\")) BETWEEN " +
+                    $"{Payment.IdempotencyKeyMinLength} AND " +
+                    $"{Payment.IdempotencyKeyMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Payments_RequestFingerprint_Valid",
-                    "length(\"RequestFingerprint\") = 64");
+                    $"length(\"RequestFingerprint\") = " +
+                    $"{Payment.RequestFingerprintLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Payments_Provider_Valid",
-                    "length(trim(\"Provider\")) BETWEEN 1 AND 100");
+                    $"length(trim(\"Provider\")) BETWEEN 1 AND " +
+                    $"{Payment.ProviderMaxLength}");
 
                 tableBuilder.HasCheckConstraint(
                     "CK_Payments_Status_Valid",
@@ -51,11 +55,11 @@ public sealed class PaymentConfiguration
 
         builder.Property(payment => payment.IdempotencyKey)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(Payment.IdempotencyKeyMaxLength);
 
         builder.Property(payment => payment.RequestFingerprint)
             .IsRequired()
-            .HasMaxLength(64)
+            .HasMaxLength(Payment.RequestFingerprintLength)
             .IsFixedLength();
 
         builder.Property(payment => payment.Amount)
@@ -63,7 +67,7 @@ public sealed class PaymentConfiguration
 
         builder.Property(payment => payment.Currency)
             .IsRequired()
-            .HasMaxLength(3)
+            .HasMaxLength(Payment.CurrencyLength)
             .IsFixedLength();
 
         builder.Property(payment => payment.Status)
@@ -71,13 +75,13 @@ public sealed class PaymentConfiguration
 
         builder.Property(payment => payment.Provider)
             .IsRequired()
-            .HasMaxLength(100);
+            .HasMaxLength(Payment.ProviderMaxLength);
 
         builder.Property(payment => payment.ProviderPaymentId)
-            .HasMaxLength(200);
+            .HasMaxLength(Payment.ProviderPaymentIdMaxLength);
 
         builder.Property(payment => payment.FailureCode)
-            .HasMaxLength(100);
+            .HasMaxLength(Payment.FailureCodeMaxLength);
 
         builder.Property(payment => payment.CreatedAtUtc)
             .IsRequired();

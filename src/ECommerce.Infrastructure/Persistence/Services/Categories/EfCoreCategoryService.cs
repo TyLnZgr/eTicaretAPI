@@ -34,16 +34,13 @@ public sealed class EfCoreCategoryService : ICategoryService
                 category => category.Id == id,
                 cancellationToken);
     }
+
     public async Task<Category> CreateAsync(
-    string name,
-    bool isActive,
-    CancellationToken cancellationToken = default)
+        string name,
+        bool isActive,
+        CancellationToken cancellationToken = default)
     {
-        var category = new Category
-        {
-            Name = name,
-            IsActive = isActive
-        };
+        var category = new Category(name, isActive);
 
         _dbContext.Categories.Add(category);
 
@@ -68,8 +65,7 @@ public sealed class EfCoreCategoryService : ICategoryService
             return null;
         }
 
-        category.Name = name;
-        category.IsActive = isActive;
+        category.UpdateDetails(name, isActive);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

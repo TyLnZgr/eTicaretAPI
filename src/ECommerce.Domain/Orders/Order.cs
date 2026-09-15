@@ -9,6 +9,7 @@ public class Order
     public const int CurrencyLength = 3;
 
     private readonly List<OrderItem> _items = [];
+    private readonly List<Payment> _payments = [];
 
     internal Order()
     {
@@ -48,8 +49,7 @@ public class Order
     public OrderAddressSnapshot? ShippingAddress { get; private set; }
 
     public IReadOnlyCollection<OrderItem> Items => _items;
-    public ICollection<Payment> Payments { get; set; }
-        = new List<Payment>();
+    public IReadOnlyCollection<Payment> Payments => _payments;
 
     public OrderItem AddItem(
         int productId,

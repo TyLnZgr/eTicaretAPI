@@ -15,7 +15,7 @@ public sealed class CartItemConfiguration
             {
                 tableBuilder.HasCheckConstraint(
                     "CK_CartItems_Quantity_Valid",
-                    "\"Quantity\" BETWEEN 1 AND 1000");
+                    $"\"Quantity\" BETWEEN 1 AND {CartItem.MaximumQuantity}");
             });
 
         builder.HasKey(item => item.Id);

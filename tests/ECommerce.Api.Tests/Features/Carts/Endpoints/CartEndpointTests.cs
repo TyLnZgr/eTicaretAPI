@@ -171,6 +171,11 @@ public sealed class CartEndpointTests
                 TestEntityFactory.CreateUser(
                     secondCustomerId,
                     "second@example.com"));
+            dbContext.Products.AddRange(
+                firstProduct,
+                secondProduct);
+
+            await dbContext.SaveChangesAsync();
 
             dbContext.Carts.AddRange(
                 CreateCart(firstCustomerId, firstProduct),
@@ -445,20 +450,14 @@ public sealed class CartEndpointTests
                 customerId,
                 recipientFullName: "Taylor Buyer");
             dbContext.CustomerAddresses.Add(address);
-            dbContext.Carts.Add(new Cart
-            {
-                CustomerId = customerId,
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow,
-                Items = new List<CartItem>
-                {
-                    new()
-                    {
-                        Product = product,
-                        Quantity = 2
-                    }
-                }
-            });
+            dbContext.Products.Add(product);
+
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Carts.Add(CreateCart(
+                customerId,
+                product,
+                quantity: 2));
 
             await dbContext.SaveChangesAsync();
             productId = product.Id;
@@ -544,20 +543,14 @@ public sealed class CartEndpointTests
                 "customer@example.com"));
             var address = TestEntityFactory.CreateAddress(customerId);
             dbContext.CustomerAddresses.Add(address);
-            dbContext.Carts.Add(new Cart
-            {
-                CustomerId = customerId,
-                CreatedAtUtc = DateTime.UtcNow,
-                UpdatedAtUtc = DateTime.UtcNow,
-                Items = new List<CartItem>
-                {
-                    new()
-                    {
-                        Product = product,
-                        Quantity = 2
-                    }
-                }
-            });
+            dbContext.Products.Add(product);
+
+            await dbContext.SaveChangesAsync();
+
+            dbContext.Carts.Add(CreateCart(
+                customerId,
+                product,
+                quantity: 2));
 
             await dbContext.SaveChangesAsync();
             productId = product.Id;
@@ -615,6 +608,10 @@ public sealed class CartEndpointTests
                 "customer@example.com"));
             var address = TestEntityFactory.CreateAddress(customerId);
             dbContext.CustomerAddresses.Add(address);
+            dbContext.Products.Add(product);
+
+            await dbContext.SaveChangesAsync();
+
             dbContext.Carts.Add(CreateCart(customerId, product));
 
             await dbContext.SaveChangesAsync();
@@ -675,21 +672,12 @@ public sealed class CartEndpointTests
 
     private static Cart CreateCart(
         Guid customerId,
-        Product product)
+        Product product,
+        int quantity = 1)
     {
-        return new Cart
-        {
-            CustomerId = customerId,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = DateTime.UtcNow,
-            Items = new List<CartItem>
-            {
-                new()
-                {
-                    Product = product,
-                    Quantity = 1
-                }
-            }
-        };
+        var now = DateTime.UtcNow;
+        var cart = new Cart(customerId, now);
+        cart.SetItemQuantity(product.Id, quantity, now);
+        return cart;
     }
 }

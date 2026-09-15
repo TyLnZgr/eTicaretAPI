@@ -8,6 +8,8 @@ public class Product
     public const int MaxNameLength = 200;
 
     private readonly List<StockMovement> _stockMovements = [];
+    private readonly List<OrderItem> _orderItems = [];
+    private readonly List<CartItem> _cartItems = [];
 
     internal Product()
     {
@@ -41,10 +43,8 @@ public class Product
     public Category Category { get; internal set; } = null!;
     public IReadOnlyCollection<StockMovement> StockMovements =>
         _stockMovements;
-    public ICollection<OrderItem> OrderItems { get; private set; }
-        = new List<OrderItem>();
-    public ICollection<CartItem> CartItems { get; private set; }
-        = new List<CartItem>();
+    public IReadOnlyCollection<OrderItem> OrderItems => _orderItems;
+    public IReadOnlyCollection<CartItem> CartItems => _cartItems;
 
     public void UpdateDetails(
         string name,

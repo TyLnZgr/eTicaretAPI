@@ -73,10 +73,14 @@ public sealed class EfCoreNotificationService : INotificationService
             return false;
         }
 
-        notification.MarkAsRead(
+        var wasChanged = notification.MarkAsRead(
             _timeProvider.GetUtcNow().UtcDateTime);
 
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        if (wasChanged)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         return true;
     }
 }

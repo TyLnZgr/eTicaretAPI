@@ -6,6 +6,7 @@ using ECommerce.Application.Orders.IntegrationEvents;
 using ECommerce.Application.Payments.Gateways;
 using ECommerce.Application.Payments.Outcomes;
 using ECommerce.Application.Payments.Services;
+using ECommerce.Application.Payments.Validation;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Infrastructure.Messaging.Outbox;
 using ECommerce.Domain.Orders;
@@ -53,8 +54,11 @@ public sealed class EfCorePaymentService : IPaymentService
     {
         if (orderId <= 0 ||
             customerId == Guid.Empty ||
-            string.IsNullOrWhiteSpace(idempotencyKey) ||
-            string.IsNullOrWhiteSpace(paymentMethodToken))
+            !Payment.IsIdempotencyKeyValid(idempotencyKey) ||
+            string.IsNullOrWhiteSpace(paymentMethodToken) ||
+            paymentMethodToken.Length >
+                PaymentRequestValidator.PaymentMethodTokenMaxLength ||
+            paymentMethodToken.Any(char.IsWhiteSpace))
         {
             return new PaymentProcessingResult(
                 PaymentProcessingStatus.InvalidRequest);

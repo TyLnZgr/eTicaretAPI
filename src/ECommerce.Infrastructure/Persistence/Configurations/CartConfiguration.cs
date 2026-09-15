@@ -22,6 +22,9 @@ public sealed class CartConfiguration : IEntityTypeConfiguration<Cart>
         builder.Property(cart => cart.UpdatedAtUtc)
             .IsRequired();
 
+        builder.Navigation(cart => cart.Items)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasOne<ApplicationUser>()
             .WithOne(customer => customer.Cart)
             .HasForeignKey<Cart>(cart => cart.CustomerId)

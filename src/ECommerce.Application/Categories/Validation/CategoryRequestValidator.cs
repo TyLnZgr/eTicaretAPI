@@ -1,3 +1,5 @@
+using ECommerce.Domain.Catalog;
+
 namespace ECommerce.Application.Categories.Validation;
 
 public static class CategoryRequestValidator
@@ -13,11 +15,11 @@ public static class CategoryRequestValidator
                 "Category name is required."
             };
         }
-        else if (name.Trim().Length > 100)
+        else if (name.Trim().Length > Category.MaxNameLength)
         {
             errors["name"] = new[]
             {
-                "Category name cannot exceed 100 characters."
+                $"Category name cannot exceed {Category.MaxNameLength} characters."
             };
         }
 

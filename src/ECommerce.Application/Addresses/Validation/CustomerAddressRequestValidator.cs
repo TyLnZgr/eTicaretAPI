@@ -1,10 +1,12 @@
 using ECommerce.Application.Addresses.Dtos;
+using ECommerce.Domain.Customers;
 
 namespace ECommerce.Application.Addresses.Validation;
 
 public static class CustomerAddressRequestValidator
 {
-    public const int MaximumAddressesPerCustomer = 20;
+    public const int MaximumAddressesPerCustomer =
+        CustomerAddress.MaximumAddressesPerCustomer;
 
     public static Dictionary<string, string[]> Validate(
         CreateCustomerAddressRequest request)
@@ -53,40 +55,41 @@ public static class CustomerAddressRequestValidator
             errors,
             "label",
             label,
-            minimumLength: 1,
-            maximumLength: 100,
+            CustomerAddress.LabelMinLength,
+            CustomerAddress.LabelMaxLength,
             "Label");
 
         AddRequiredLengthError(
             errors,
             "recipientFullName",
             recipientFullName,
-            minimumLength: 2,
-            maximumLength: 200,
+            CustomerAddress.RecipientFullNameMinLength,
+            CustomerAddress.RecipientFullNameMaxLength,
             "Recipient full name");
 
         AddRequiredLengthError(
             errors,
             "phoneNumber",
             phoneNumber,
-            minimumLength: 3,
-            maximumLength: 30,
+            CustomerAddress.PhoneNumberMinLength,
+            CustomerAddress.PhoneNumberMaxLength,
             "Phone number");
 
         AddRequiredLengthError(
             errors,
             "addressLine1",
             addressLine1,
-            minimumLength: 5,
-            maximumLength: 300,
+            CustomerAddress.AddressLine1MinLength,
+            CustomerAddress.AddressLine1MaxLength,
             "Address line 1");
 
         if (!string.IsNullOrWhiteSpace(addressLine2) &&
-            addressLine2.Trim().Length > 300)
+            addressLine2.Trim().Length > CustomerAddress.AddressLine2MaxLength)
         {
             errors["addressLine2"] = new[]
             {
-                "Address line 2 cannot exceed 300 characters."
+                $"Address line 2 cannot exceed " +
+                $"{CustomerAddress.AddressLine2MaxLength} characters."
             };
         }
 
@@ -94,30 +97,30 @@ public static class CustomerAddressRequestValidator
             errors,
             "district",
             district,
-            minimumLength: 1,
-            maximumLength: 100,
+            CustomerAddress.DistrictMinLength,
+            CustomerAddress.DistrictMaxLength,
             "District");
 
         AddRequiredLengthError(
             errors,
             "city",
             city,
-            minimumLength: 1,
-            maximumLength: 100,
+            CustomerAddress.CityMinLength,
+            CustomerAddress.CityMaxLength,
             "City");
 
         AddRequiredLengthError(
             errors,
             "postalCode",
             postalCode,
-            minimumLength: 1,
-            maximumLength: 20,
+            CustomerAddress.PostalCodeMinLength,
+            CustomerAddress.PostalCodeMaxLength,
             "Postal code");
 
         var normalizedCountryCode = countryCode?.Trim();
 
         if (normalizedCountryCode is null ||
-            normalizedCountryCode.Length != 2 ||
+            normalizedCountryCode.Length != CustomerAddress.CountryCodeLength ||
             normalizedCountryCode.Any(character => !char.IsLetter(character)))
         {
             errors["countryCode"] = new[]

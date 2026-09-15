@@ -1,6 +1,5 @@
 using ECommerce.Application.Carts.Outcomes;
 using ECommerce.Application.Carts.Services;
-using ECommerce.Application.Carts.Validation;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.Domain.Carts;
 using Microsoft.EntityFrameworkCore;
@@ -38,7 +37,7 @@ public sealed class EfCoreCartService : ICartService
         if (customerId == Guid.Empty ||
             productId <= 0 ||
             quantity < 1 ||
-            quantity > CartRequestValidator.MaximumQuantityPerItem)
+            quantity > CartItem.MaximumQuantity)
         {
             return new CartMutationResult(
                 CartMutationStatus.InvalidRequest);
@@ -92,32 +91,12 @@ public sealed class EfCoreCartService : ICartService
 
         if (cart is null)
         {
-            cart = new Cart
-            {
-                CustomerId = customerId,
-                CreatedAtUtc = now,
-                UpdatedAtUtc = now
-            };
+            cart = new Cart(customerId, now);
 
             _dbContext.Carts.Add(cart);
         }
 
-        var item = cart.Items.SingleOrDefault(candidate =>
-            candidate.ProductId == productId);
-
-        if (item is null)
-        {
-            cart.Items.Add(new CartItem
-            {
-                ProductId = productId,
-                Quantity = quantity
-            });
-        }
-        else if (item.Quantity != quantity)
-        {
-            item.Quantity = quantity;
-        }
-        else
+        if (!cart.SetItemQuantity(productId, quantity, now))
         {
             var unchangedCart = await GetAsync(
                 customerId,
@@ -127,8 +106,6 @@ public sealed class EfCoreCartService : ICartService
                 CartMutationStatus.Success,
                 unchangedCart);
         }
-
-        cart.UpdatedAtUtc = now;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -152,16 +129,12 @@ public sealed class EfCoreCartService : ICartService
                 candidate => candidate.CustomerId == customerId,
                 cancellationToken);
 
-        var item = cart?.Items.SingleOrDefault(candidate =>
-            candidate.ProductId == productId);
-
-        if (cart is null || item is null)
+        if (cart is null || !cart.RemoveItem(
+                productId,
+                _timeProvider.GetUtcNow().UtcDateTime))
         {
             return CartItemRemovalStatus.ItemNotFound;
         }
-
-        cart.Items.Remove(item);
-        cart.UpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -178,13 +151,11 @@ public sealed class EfCoreCartService : ICartService
                 candidate => candidate.CustomerId == customerId,
                 cancellationToken);
 
-        if (cart is null || cart.Items.Count == 0)
+        if (cart is null || !cart.Clear(
+                _timeProvider.GetUtcNow().UtcDateTime))
         {
             return;
         }
-
-        cart.Items.Clear();
-        cart.UpdatedAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

@@ -41,6 +41,13 @@ public sealed class CustomerNotification
                 nameof(sourceMessageId));
         }
 
+        if (!Enum.IsDefined(type))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(type),
+                "A valid notification type is required.");
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
 
@@ -69,7 +76,7 @@ public sealed class CustomerNotification
         Type = type;
         Title = normalizedTitle;
         Message = normalizedMessage;
-        CreatedAtUtc = createdAtUtc;
+        CreatedAtUtc = NormalizeUtc(createdAtUtc);
     }
 
     public Guid Id { get; private set; }
@@ -85,14 +92,20 @@ public sealed class CustomerNotification
 
     public Order? Order { get; private set; }
 
-    public void MarkAsRead(DateTime readAtUtc)
+    public bool MarkAsRead(DateTime readAtUtc)
     {
         if (IsRead)
         {
-            return;
+            return false;
         }
 
         IsRead = true;
-        ReadAtUtc = readAtUtc;
+        ReadAtUtc = NormalizeUtc(readAtUtc);
+        return true;
+    }
+
+    private static DateTime NormalizeUtc(DateTime value)
+    {
+        return DateTime.SpecifyKind(value, DateTimeKind.Utc);
     }
 }
